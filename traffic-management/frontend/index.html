@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartTraffic AI | Tactical Traffic Control Center</title>
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome Tactical Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <!-- Custom Tactical Control Center Theme -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Startup Loading Screen -->
+    <div id="loading-screen">
+        <div class="loading-content">
+            <div class="loading-logo">
+                <i class="fa-solid fa-crosshairs"></i>
+            </div>
+            <h1 class="loading-title">SmartTraffic AI — Control Terminal</h1>
+            <div class="spinner-glow"></div>
+            <p class="loading-subtitle" id="startup-step-text">Initializing Tactical Telemetry...</p>
+        </div>
+    </div>
+
+    <!-- Main Dashboard Layout -->
+    <div id="app-layout">
+        <!-- Left Sidebar Navigation -->
+        <aside class="sidebar" id="sidebar-nav">
+            <div class="sidebar-brand">
+                <i class="fa-solid fa-radar brand-icon"></i>
+                <span class="brand-text">SmartTraffic AI</span>
+            </div>
+            <ul class="sidebar-nav">
+                <li>
+                    <a href="#" class="nav-link active" onclick="switchTab(event, 'dashboard')">
+                        <i class="fa-solid fa-gauge-high"></i>
+                        <span class="nav-text">Control Center</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="nav-link" onclick="switchTab(event, 'emergency')">
+                        <i class="fa-solid fa-truck-medical text-danger"></i>
+                        <span class="nav-text">Emergency Priority</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="nav-link" onclick="switchTab(event, 'prediction')">
+                        <i class="fa-solid fa-microchip"></i>
+                        <span class="nav-text">AI Prediction</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="nav-link" onclick="switchTab(event, 'route')">
+                        <i class="fa-solid fa-route"></i>
+                        <span class="nav-text">Adaptive Rerouting</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="nav-link" onclick="switchTab(event, 'environmental')">
+                        <i class="fa-solid fa-leaf text-success"></i>
+                        <span class="nav-text">Environmental Hub</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="nav-link" onclick="switchTab(event, 'report')">
+                        <i class="fa-solid fa-file-invoice"></i>
+                        <span class="nav-text">Report Export</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="nav-link" onclick="switchTab(event, 'camera')">
+                        <i class="fa-solid fa-video"></i>
+                        <span class="nav-text">Camera Network</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="nav-link" onclick="switchTab(event, 'analytics')">
+                        <i class="fa-solid fa-chart-line"></i>
+                        <span class="nav-text">Analytics Hub</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#settingsModal">
+                        <i class="fa-solid fa-sliders"></i>
+                        <span class="nav-text">Settings</span>
+                    </a>
+                </li>
+            </ul>
+        </aside>
+
+        <!-- Main Content Wrapper -->
+        <div class="main-wrapper">
+            <!-- Top Tactical Navbar Header -->
+            <header class="top-navbar">
+                <div class="d-flex align-items-center gap-3">
+                    <button id="btn-toggle-sidebar" class="btn btn-outline-warning btn-sm"><i class="fa-solid fa-bars"></i></button>
+                    <i class="fa-solid fa-crosshairs text-warning fs-5"></i>
+                    <h2 class="navbar-title m-0">Tactical Traffic Control Terminal</h2>
+                </div>
+
+                <div class="position-relative d-none d-md-block ms-3">
+                    <i class="fa-solid fa-magnifying-glass position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
+                    <input type="text" class="search-box-input" placeholder="Search camera / junction...">
+                </div>
+
+                <div class="navbar-right">
+                    <button id="btn-presentation-mode" class="btn btn-amber-outline btn-sm fw-bold">
+                        <i class="fa-solid fa-expand me-1"></i> Presentation Mode
+                    </button>
+
+                    <button class="btn btn-outline-secondary btn-sm font-mono" data-bs-toggle="modal" data-bs-target="#startupStatusModal">
+                        <i class="fa-solid fa-server me-1"></i> Status
+                    </button>
+
+                    <div id="sys-header-badge" class="sys-status-badge">SYSTEM ONLINE</div>
+
+                    <div class="time-display">
+                        <span id="header-date">--</span> | <span id="header-time" class="text-warning fw-bold">--:--:--</span>
+                    </div>
+
+                    <div class="dropdown">
+                        <a href="#" class="text-warning text-decoration-none dropdown-toggle" data-bs-toggle="dropdown">
+                            <i class="fa-solid fa-user-shield fs-5"></i>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
+                            <li><h6 class="dropdown-header">Tactical Controller</h6></li>
+                            <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#settingsModal"><i class="fa-solid fa-gear me-2"></i> Settings</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="#"><i class="fa-solid fa-power-off me-2"></i> Lock Terminal</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Page Main Content Area -->
+            <main class="page-content">
+                <!-- 1. Executive Top Tactical KPI Cards (8 Metrics) -->
+                <div class="top-kpi-grid">
+                    <div class="kpi-mini-card">
+                        <span class="kpi-mini-title"><i class="fa-solid fa-video me-1 text-warning"></i> Connected Cameras</span>
+                        <span class="kpi-mini-val text-warning" id="kpi-connected-cams">4 / 4</span>
+                    </div>
+                    <div class="kpi-mini-card">
+                        <span class="kpi-mini-title"><i class="fa-solid fa-diagram-project me-1"></i> Active Junctions</span>
+                        <span class="kpi-mini-val text-white" id="kpi-active-junc">4</span>
+                    </div>
+                    <div class="kpi-mini-card">
+                        <span class="kpi-mini-title"><i class="fa-solid fa-bell me-1 text-warning"></i> Alerts Today</span>
+                        <span class="kpi-mini-val text-warning" id="kpi-alerts-today">12</span>
+                    </div>
+                    <div class="kpi-mini-card">
+                        <span class="kpi-mini-title"><i class="fa-solid fa-truck-medical me-1 text-danger"></i> Emergency Events</span>
+                        <span class="kpi-mini-val text-danger" id="kpi-emg-count">3</span>
+                    </div>
+                    <div class="kpi-mini-card">
+                        <span class="kpi-mini-title"><i class="fa-solid fa-clock me-1"></i> Avg Waiting Time</span>
+                        <span class="kpi-mini-val text-info" id="kpi-avg-wait">45s</span>
+                    </div>
+                    <div class="kpi-mini-card">
+                        <span class="kpi-mini-title"><i class="fa-solid fa-leaf me-1 text-success"></i> Est. CO₂ Saved</span>
+                        <span class="kpi-mini-val text-success" id="kpi-co2-saved">28%</span>
+                    </div>
+                    <div class="kpi-mini-card">
+                        <span class="kpi-mini-title"><i class="fa-solid fa-shield-halved me-1 text-success"></i> System Health</span>
+                        <span class="kpi-mini-val text-success" id="kpi-sys-health">ONLINE</span>
+                    </div>
+                    <div class="kpi-mini-card">
+                        <span class="kpi-mini-title"><i class="fa-solid fa-brain me-1 text-warning"></i> AI Accuracy</span>
+                        <span class="kpi-mini-val text-warning" id="kpi-ai-acc">96.4%</span>
+                    </div>
+                </div>
+
+                <!-- 2. PHASE 11: EMERGENCY COMMAND CENTER -->
+                <div id="emergency-section" class="tab-pane" data-tab="emergency">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-uppercase fw-bold text-danger small font-mono"><i class="fa-solid fa-truck-medical me-2"></i> Emergency Priority Center — Green Corridor Control</span>
+                        <div class="d-flex gap-2">
+                            <span class="ai-recommend-badge"><i class="fa-solid fa-brain me-1"></i> AI Recommendation</span>
+                            <span class="pending-approval-badge" id="emg-status-badge"><i class="fa-solid fa-user-clock me-1"></i> Pending Operator Approval</span>
+                        </div>
+                    </div>
+
+                    <div class="emergency-card">
+                        <div class="d-flex justify-content-between align-items-center border-bottom border-secondary pb-2">
+                            <div>
+                                <span class="badge bg-danger text-uppercase me-2 fw-bold font-mono" id="emg-prio-badge">CRITICAL EMERGENCY</span>
+                                <span class="fw-bold fs-6 text-white" id="emg-veh-type">Ambulance (EMS-102) Detected</span>
+                            </div>
+                            <div class="small text-muted font-mono">
+                                Confidence: <strong class="text-warning" id="emg-confidence">97.8%</strong> | Time: <span id="emg-time">Just now</span>
+                            </div>
+                        </div>
+
+                        <div class="emergency-corridor-box">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <strong class="text-warning fs-6 font-mono"><i class="fa-solid fa-route me-1"></i> Recommended Green Corridor Priority</strong>
+                                <span class="small text-muted font-mono">Target: <strong class="text-white" id="emg-junction">Junction A - Central Avenue</strong></span>
+                            </div>
+                            
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <div class="p-2 bg-dark rounded border border-secondary">
+                                        <div class="small text-muted font-mono uppercase">Rec. Green Signal</div>
+                                        <div class="fs-4 fw-bold text-success font-mono" id="emg-green-time">75 sec</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="p-2 bg-dark rounded border border-secondary">
+                                        <div class="small text-muted font-mono uppercase">Delay Reduction</div>
+                                        <div class="fs-4 fw-bold text-info font-mono" id="emg-delay-red">70%</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="p-2 bg-dark rounded border border-secondary">
+                                        <div class="small text-muted font-mono uppercase">Time Saved</div>
+                                        <div class="fs-4 fw-bold text-success font-mono" id="emg-time-saved">4.5 min</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 d-flex align-items-center">
+                                    <button id="btn-approve-corridor" class="btn btn-success w-100 fw-bold py-2 font-mono">
+                                        <i class="fa-solid fa-check-double me-1"></i> Approve Green Corridor
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="small text-warning mt-1">
+                                <i class="fa-solid fa-shield-halved me-1"></i> <strong>Operator Safety Mandate:</strong> AI recommendations require human controller approval prior to physical signal override.
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="small fw-bold text-muted text-uppercase mb-1 font-mono"><i class="fa-solid fa-history me-1"></i> Recent Emergency Priority Events</div>
+                            <table class="emergency-history-table">
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Vehicle Type</th>
+                                        <th>Junction</th>
+                                        <th>Action Taken</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="emg-history-tbody">
+                                    <tr>
+                                        <td>11:45 AM</td>
+                                        <td>Ambulance EMS-102</td>
+                                        <td>Junction A</td>
+                                        <td>Green Corridor Approved</td>
+                                        <td><span class="status-pill pill-online">Cleared</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. ENVIRONMENTAL & EXECUTIVE INSIGHTS PANEL -->
+                <div id="environmental-section" class="control-grid tab-pane" data-tab="environmental">
+                    <div class="cc-card col-6">
+                        <div class="cc-card-header">
+                            <span class="cc-card-title"><i class="fa-solid fa-leaf text-success"></i> Environmental Impact Hub</span>
+                            <span class="status-pill pill-online">Grade A+ (96%)</span>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <div class="p-3 bg-dark rounded border border-secondary">
+                                    <span class="small text-muted d-block font-mono">Est. Fuel Saved</span>
+                                    <strong class="fs-5 text-success font-mono">142 Liters</strong>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-3 bg-dark rounded border border-secondary">
+                                    <span class="small text-muted d-block font-mono">CO₂ Reduction</span>
+                                    <strong class="fs-5 text-info font-mono">385 kg</strong>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-3 bg-dark rounded border border-secondary">
+                                    <span class="small text-muted d-block font-mono">Idle Time Reduced</span>
+                                    <strong class="fs-5 text-success font-mono">32%</strong>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-3 bg-dark rounded border border-secondary">
+                                    <span class="small text-muted d-block font-mono">Environmental Score</span>
+                                    <strong class="fs-5 text-warning font-mono">96 / 100</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="cc-card col-6">
+                        <div class="cc-card-header">
+                            <span class="cc-card-title"><i class="fa-solid fa-chart-line text-warning"></i> Tactical Decision Insights</span>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <div class="p-3 bg-dark rounded border border-secondary">
+                                    <span class="small text-muted d-block font-mono">Today's AI Decisions</span>
+                                    <strong class="fs-5 text-white font-mono">1,420</strong>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-3 bg-dark rounded border border-secondary">
+                                    <span class="small text-muted d-block font-mono">Traffic Optimization</span>
+                                    <strong class="fs-5 text-success font-mono">94%</strong>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-3 bg-dark rounded border border-secondary">
+                                    <span class="small text-muted d-block font-mono">Emergency Handling</span>
+                                    <strong class="fs-5 text-info font-mono">99%</strong>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-3 bg-dark rounded border border-secondary">
+                                    <span class="small text-muted d-block font-mono">Avg Route Improvement</span>
+                                    <strong class="fs-5 text-success font-mono">+28%</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. TRAFFIC SUMMARY & OPERATIONS TIMELINE -->
+                <div class="control-grid tab-pane active-tab" data-tab="dashboard">
+                    <div class="cc-card col-6">
+                        <div class="cc-card-header">
+                            <span class="cc-card-title"><i class="fa-solid fa-city text-warning"></i> Tactical Traffic Summary</span>
+                        </div>
+                        <div class="health-list font-mono">
+                            <div class="health-item">
+                                <span>Highest Congestion</span>
+                                <strong class="text-danger">Junction C - Tech Park Crossing</strong>
+                            </div>
+                            <div class="health-item">
+                                <span>Lowest Congestion</span>
+                                <strong class="text-success">Junction D - Airport Expressway</strong>
+                            </div>
+                            <div class="health-item">
+                                <span>Average City Traffic</span>
+                                <strong class="text-warning">MEDIUM</strong>
+                            </div>
+                            <div class="health-item">
+                                <span>Peak Hour Window</span>
+                                <strong class="text-info">08:30 AM - 10:00 AM</strong>
+                            </div>
+                            <div class="health-item">
+                                <span>Avg Signal Green Cycle</span>
+                                <strong class="text-white">42 seconds</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="cc-card col-6">
+                        <div class="cc-card-header">
+                            <span class="cc-card-title"><i class="fa-solid fa-list-check text-warning"></i> Operations Log Feed</span>
+                        </div>
+                        <div class="alerts-container font-mono" id="ops-timeline-feed">
+                            <div class="alert-item">
+                                <span><i class="fa-solid fa-check-circle text-success me-2"></i> Tactical Telemetry Synchronized</span>
+                                <small class="text-muted">08:00 AM</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. REPORT EXPORT CENTER -->
+                <div id="report-center-section" class="cc-card col-12 tab-pane" data-tab="report">
+                    <div class="cc-card-header">
+                        <span class="cc-card-title"><i class="fa-solid fa-file-export text-warning"></i> Tactical Report Export Center</span>
+                        <div class="d-flex gap-2">
+                            <button id="btn-export-csv" class="btn btn-amber-outline btn-sm font-mono">
+                                <i class="fa-solid fa-file-csv me-1"></i> Export CSV Report
+                            </button>
+                            <button id="btn-export-pdf" class="btn btn-amber-outline btn-sm font-mono">
+                                <i class="fa-solid fa-file-pdf me-1"></i> Export PDF Summary
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6. PREDICTIVE AI PANEL -->
+                <div id="prediction-panel-section" class="tab-pane" data-tab="prediction">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-uppercase fw-bold text-muted small font-mono"><i class="fa-solid fa-wand-magic-sparkles text-warning me-2"></i> Predictive AI Traffic Engine (Horizon Forecast)</span>
+                        <span class="status-pill pill-online" id="pred-engine-badge">Predictive AI Active</span>
+                    </div>
+                    <div class="prediction-card">
+                        <div class="prediction-timeline">
+                            <div class="timeline-step-box">
+                                <span class="timeline-step-time"><i class="fa-solid fa-clock me-1 text-warning"></i> Now</span>
+                                <span class="timeline-step-veh" id="timeline-now-veh">14</span>
+                                <span class="timeline-density-pill pred-density-medium" id="timeline-now-density">MEDIUM</span>
+                            </div>
+                            <div class="timeline-step-box">
+                                <span class="timeline-step-time"><i class="fa-solid fa-forward me-1 text-warning"></i> 2 Minutes</span>
+                                <span class="timeline-step-veh" id="timeline-2min-veh">16</span>
+                                <span class="timeline-density-pill pred-density-medium" id="timeline-2min-density">MEDIUM</span>
+                            </div>
+                            <div class="timeline-step-box">
+                                <span class="timeline-step-time"><i class="fa-solid fa-forward me-1 text-warning"></i> 5 Minutes</span>
+                                <span class="timeline-step-veh text-warning" id="timeline-5min-veh">21</span>
+                                <span class="timeline-density-pill pred-density-high" id="timeline-5min-density">HIGH</span>
+                            </div>
+                            <div class="timeline-step-box">
+                                <span class="timeline-step-time"><i class="fa-solid fa-forward me-1 text-danger"></i> 10 Minutes</span>
+                                <span class="timeline-step-veh text-danger" id="timeline-10min-veh">26</span>
+                                <span class="timeline-density-pill pred-density-severe" id="timeline-10min-density">SEVERE</span>
+                            </div>
+                        </div>
+
+                        <div class="preemptive-box font-mono">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <strong class="text-warning fs-6"><i class="fa-solid fa-bolt me-1"></i> Preemptive AI Signal Recommendation</strong>
+                                <span class="small text-muted">Confidence: <strong class="text-warning" id="pred-conf-val">96.4%</strong></span>
+                            </div>
+                            <div class="small text-white">
+                                Current Density: <strong id="pred-curr-density" class="text-warning">MEDIUM</strong> | Predicted Density (5m): <strong id="pred-target-density" class="text-danger">HIGH</strong>
+                            </div>
+                            <div class="small text-success fw-bold" id="pred-action-text">
+                                Action: Increase Green Signal by 15 Seconds (Preemptive Clearance)
+                            </div>
+                            <div class="small text-muted" id="pred-reason-text">
+                                Reason: Vehicle Growth Rate Increasing — Preemptively clears congestion before bottleneck builds up.
+                            </div>
+                        </div>
+
+                        <div class="cc-card">
+                            <div class="cc-card-header">
+                                <span class="cc-card-title"><i class="fa-solid fa-chart-line"></i> Traffic Prediction vs Actual Trend</span>
+                            </div>
+                            <div class="chart-container-box">
+                                <canvas id="predictionLineChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 7. AI ALTERNATIVE ROUTE MODULE -->
+                <div id="route-recommendation-section" class="tab-pane" data-tab="route">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-uppercase fw-bold text-muted small font-mono"><i class="fa-solid fa-route text-warning me-2"></i> Adaptive Rerouting Engine</span>
+                        <span id="route-status-tag" class="status-pill pill-online">Active Monitoring</span>
+                    </div>
+                    <div class="route-recommendation-card" id="route-rec-card">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-bold fs-6 text-white font-mono"><i class="fa-solid fa-diagram-project text-warning me-2"></i> Dynamic Bypass Reroute</span>
+                            <span class="priority-badge priority-medium font-mono" id="route-priority-badge">Low Priority</span>
+                        </div>
+
+                        <div class="route-flow-box">
+                            <div class="route-step">
+                                <span class="route-step-tag text-danger"><i class="fa-solid fa-triangle-exclamation me-1"></i> Current Congested Route</span>
+                                <span class="route-name-curr" id="route-curr-name">Route A (Via Main Highway)</span>
+                                <span class="small text-muted font-mono" id="route-curr-status">Traffic Level: <strong class="text-danger" id="route-curr-level">HIGH</strong></span>
+                            </div>
+
+                            <div class="route-arrow-connector">
+                                <i class="fa-solid fa-right-long d-none d-md-block"></i>
+                                <i class="fa-solid fa-down-long d-md-none"></i>
+                                <span class="badge bg-warning text-dark fw-bold small font-mono">AI REROUTE</span>
+                            </div>
+
+                            <div class="route-step">
+                                <span class="route-step-tag text-success"><i class="fa-solid fa-circle-check me-1"></i> Recommended Alternative Route</span>
+                                <span class="route-name-alt" id="route-alt-name">Route B (Via Service Bypass Road)</span>
+                                <span class="small text-muted font-mono">Traffic Level: <strong class="text-success">LOW</strong></span>
+                            </div>
+                        </div>
+
+                        <div class="route-metrics-grid">
+                            <div class="route-metric-pill">
+                                <span class="route-metric-label">Estimated Time Saved</span>
+                                <span class="route-metric-value text-success" id="route-time-saved">8 min</span>
+                            </div>
+                            <div class="route-metric-pill">
+                                <span class="route-metric-label">Waiting Reduction</span>
+                                <span class="route-metric-value text-info" id="route-wait-reduction">45%</span>
+                            </div>
+                            <div class="route-metric-pill">
+                                <span class="route-metric-label">CO₂ Emission Reduction</span>
+                                <span class="route-metric-value text-success" id="route-co2-reduction">22%</span>
+                            </div>
+                            <div class="route-metric-pill">
+                                <span class="route-metric-label">Reroute Reason</span>
+                                <span class="route-metric-value text-white fs-6 text-truncate" id="route-reason">High Congestion on Main Highway</span>
+                            </div>
+                        </div>
+
+                        <div id="route-no-rec-banner" class="alert alert-dark border-secondary m-0 text-center text-muted font-mono d-none">
+                            <i class="fa-solid fa-circle-check text-success me-2"></i> <strong>No Alternative Route Required</strong> — Normal Traffic Flow Operating Smoothly.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 8. CAMERA MANAGEMENT NETWORK -->
+                <div id="camera-management-section" class="tab-pane" data-tab="camera">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-uppercase fw-bold text-muted small font-mono"><i class="fa-solid fa-video text-warning me-2"></i> Multi-Camera Radar Stream Network</span>
+                        <span class="small text-muted font-mono">Click camera card to switch focus</span>
+                    </div>
+                    <div class="cam-manage-grid" id="cam-manage-container">
+                        <div class="cam-manage-card active" id="cam-card-J101" onclick="switchCamera('J101', 'Camera 01 - Junction A')">
+                            <div class="cam-manage-header">
+                                <span class="cam-manage-name"><i class="fa-solid fa-video me-1 text-warning"></i> Camera 01</span>
+                                <span class="cam-status-live"><i class="fa-solid fa-circle me-1 fs-6"></i> LIVE</span>
+                            </div>
+                            <div class="cam-manage-body">
+                                <div>Assigned: <strong class="text-white">Junction A - Central Ave</strong></div>
+                                <div>Source: <strong class="text-warning">traffic.mp4</strong></div>
+                                <div>Stream: <strong class="text-success">/video-feed/J101</strong></div>
+                            </div>
+                        </div>
+
+                        <div class="cam-manage-card" id="cam-card-J102" onclick="switchCamera('J102', 'Camera 02 - Junction B')">
+                            <div class="cam-manage-header">
+                                <span class="cam-manage-name"><i class="fa-solid fa-video me-1 text-warning"></i> Camera 02</span>
+                                <span class="cam-status-live"><i class="fa-solid fa-circle me-1 fs-6"></i> LIVE</span>
+                            </div>
+                            <div class="cam-manage-body">
+                                <div>Assigned: <strong class="text-white">Junction B - Ring Road</strong></div>
+                                <div>Source: <strong class="text-warning">traffic_b.mp4</strong></div>
+                                <div>Stream: <strong class="text-success">/video-feed/J102</strong></div>
+                            </div>
+                        </div>
+
+                        <div class="cam-manage-card" id="cam-card-J103" onclick="switchCamera('J103', 'Camera 03 - Junction C')">
+                            <div class="cam-manage-header">
+                                <span class="cam-manage-name"><i class="fa-solid fa-video me-1 text-warning"></i> Camera 03</span>
+                                <span class="cam-status-live"><i class="fa-solid fa-circle me-1 fs-6"></i> LIVE</span>
+                            </div>
+                            <div class="cam-manage-body">
+                                <div>Assigned: <strong class="text-white">Junction C - Tech Park</strong></div>
+                                <div>Source: <strong class="text-warning">traffic_c.mp4</strong></div>
+                                <div>Stream: <strong class="text-success">/video-feed/J103</strong></div>
+                            </div>
+                        </div>
+
+                        <div class="cam-manage-card" id="cam-card-J104" onclick="switchCamera('J104', 'Camera 04 - Junction D')">
+                            <div class="cam-manage-header">
+                                <span class="cam-manage-name"><i class="fa-solid fa-video me-1 text-warning"></i> Camera 04</span>
+                                <span class="cam-status-live"><i class="fa-solid fa-circle me-1 fs-6"></i> LIVE</span>
+                            </div>
+                            <div class="cam-manage-body">
+                                <div>Assigned: <strong class="text-white">Junction D - Airport Expy</strong></div>
+                                <div>Source: <strong class="text-warning">traffic_d.mp4</strong></div>
+                                <div>Stream: <strong class="text-success">/video-feed/J104</strong></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 9. HISTORICAL ANALYTICS HUB -->
+                <div id="analytics-section" class="tab-pane" data-tab="analytics">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-uppercase fw-bold text-muted small font-mono"><i class="fa-solid fa-chart-pie text-warning me-2"></i> Deep Historical Analytics & Intelligence</span>
+                        <span class="status-pill pill-online"><i class="fa-solid fa-database me-1"></i> Data Warehouse Synced</span>
+                    </div>
+                    
+                    <div class="control-grid">
+                        <div class="cc-card col-6">
+                            <div class="cc-card-header">
+                                <span class="cc-card-title"><i class="fa-solid fa-chart-column text-warning"></i> Weekly Traffic Volume Trend</span>
+                            </div>
+                            <div class="chart-container-box" style="height: 280px;">
+                                <canvas id="analyticsVolumeChart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="cc-card col-6">
+                            <div class="cc-card-header">
+                                <span class="cc-card-title"><i class="fa-solid fa-chart-pie text-warning"></i> Vehicle Distribution (Monthly)</span>
+                            </div>
+                            <div class="chart-container-box" style="height: 280px;">
+                                <canvas id="analyticsDistChart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="cc-card col-6">
+                            <div class="cc-card-header">
+                                <span class="cc-card-title"><i class="fa-solid fa-leaf text-success"></i> CO₂ Reduction Impact</span>
+                            </div>
+                            <div class="chart-container-box" style="height: 280px;">
+                                <canvas id="analyticsCo2Chart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="cc-card col-6">
+                            <div class="cc-card-header">
+                                <span class="cc-card-title"><i class="fa-solid fa-brain text-info"></i> AI Detection Accuracy Trend</span>
+                            </div>
+                            <div class="chart-container-box" style="height: 280px;">
+                                <canvas id="analyticsAccuracyChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="control-grid tab-pane active-tab" data-tab="dashboard">
+                    <!-- Live Camera Feed Container -->
+                    <div class="cc-card col-8 camera-card">
+                        <div class="cc-card-header">
+                            <span class="cc-card-title"><i class="fa-solid fa-camera text-warning"></i> Live AI Stream: <span id="selected-cam-name" class="text-warning ms-1">Camera 01 - Junction A</span></span>
+                            <div class="camera-header-actions">
+                                <span id="cam-status-badge" class="cam-status-live"><i class="fa-solid fa-circle fs-6"></i> ONLINE</span>
+                            </div>
+                        </div>
+
+                        <div class="camera-container" id="cam-container">
+                            <div id="cam-loading-overlay" class="camera-overlay-state font-mono">
+                                <div class="spinner-glow"></div>
+                                <span id="cam-loading-text">Loading Live Stream...</span>
+                            </div>
+                            <div id="cam-offline-overlay" class="camera-overlay-state d-none font-mono">
+                                <i class="fa-solid fa-video-slash fs-1 text-danger"></i>
+                                <span id="cam-offline-text">Camera Stream Offline</span>
+                                <small class="text-muted">Reconnecting in 5s...</small>
+                            </div>
+                            <img id="cam-stream" class="camera-stream-img" src="http://localhost:5000/video-feed/J101" alt="Live AI Stream" />
+                        </div>
+
+                        <div class="camera-meta-bar font-mono">
+                            <span>Resolution: <strong>800x600</strong></span>
+                            <span>Frame Rate: <strong id="cam-fps">30 FPS</strong></span>
+                            <span>AI Tracker: <strong>YOLOv8 + ByteTrack Active</strong></span>
+                        </div>
+                    </div>
+
+                    <!-- Microservices Health Panel -->
+                    <div class="cc-card col-4 hide-in-presentation">
+                        <div class="cc-card-header">
+                            <span class="cc-card-title"><i class="fa-solid fa-server text-warning"></i> Microservices Status</span>
+                        </div>
+                        <div class="health-list font-mono">
+                            <div class="health-item">
+                                <span>Spring Boot Backend</span>
+                                <span id="status-backend" class="status-pill pill-online">ONLINE</span>
+                            </div>
+                            <div class="health-item">
+                                <span>Python AI Engine</span>
+                                <span id="status-ai" class="status-pill pill-online">ONLINE</span>
+                            </div>
+                            <div class="health-item">
+                                <span>MySQL Database</span>
+                                <span id="status-db" class="status-pill pill-online">ONLINE</span>
+                            </div>
+                            <div class="health-item">
+                                <span>Camera Feed</span>
+                                <span id="status-camera" class="status-pill pill-online">ONLINE</span>
+                            </div>
+                            <div class="health-item">
+                                <span>STOMP WebSocket</span>
+                                <span id="status-ws" class="status-pill pill-online">ONLINE</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Smart GIS Radar Map -->
+                    <div class="cc-card col-8">
+                        <div class="cc-card-header">
+                            <span class="cc-card-title"><i class="fa-solid fa-map-location-dot text-warning"></i> GIS Camera Network & Emergency Corridor</span>
+                            <div class="map-card-controls">
+                                <button id="btn-map-locate" class="map-btn-icon" title="Center Map"><i class="fa-solid fa-crosshairs"></i></button>
+                                <button id="btn-map-fullscreen" class="map-btn-icon" title="Toggle Fullscreen"><i class="fa-solid fa-expand"></i></button>
+                                <button id="btn-map-refresh" class="map-btn-icon" title="Refresh Map Data"><i class="fa-solid fa-rotate-right"></i></button>
+                            </div>
+                        </div>
+                        <div id="map"></div>
+                    </div>
+
+                    <!-- Selected Camera Telemetry -->
+                    <div class="cc-card col-4">
+                        <div class="cc-card-header">
+                            <span class="cc-card-title"><i class="fa-solid fa-circle-info text-warning"></i> Camera Telemetry</span>
+                        </div>
+                        <div class="map-side-panel font-mono">
+                            <div>
+                                <div class="small text-muted">SELECTED NODE</div>
+                                <h5 class="fw-bold text-warning m-0" id="map-panel-jname">Camera 01 (Junction A)</h5>
+                                <div class="small text-muted" id="map-panel-jid">Stream: /video-feed/J101</div>
+                            </div>
+                            <hr class="my-1 border-secondary">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="small text-muted">Density Level</span>
+                                <span id="map-panel-level" class="status-pill pill-online">LOW</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="small text-muted">Signal Phase</span>
+                                <div id="map-panel-signal-indicator" class="glowing-signal-indicator signal-indicator-green">
+                                    <i class="fa-solid fa-traffic-light"></i> GREEN (35s)
+                                </div>
+                            </div>
+                            <div>
+                                <span class="small text-muted d-block">AI Decision</span>
+                                <div class="small text-white fw-bold mt-1" id="map-panel-recommendation">Standard Low Traffic Cycle</div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-1">
+                                <span class="small text-muted">Vehicle Count</span>
+                                <strong class="fs-5 text-white font-mono" id="map-panel-vehicles">0</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Insights Panel -->
+                    <div class="cc-card col-6 hide-in-presentation">
+                        <div class="cc-card-header">
+                            <span class="cc-card-title"><i class="fa-solid fa-microchip text-warning"></i> AI Predictive Insights</span>
+                        </div>
+                        <div class="insights-grid font-mono">
+                            <div class="insight-card">
+                                <span class="insight-title">Traffic Risk Score</span>
+                                <span class="insight-val text-success" id="ins-risk">12 / 100</span>
+                            </div>
+                            <div class="insight-card">
+                                <span class="insight-title">Congestion Index</span>
+                                <span class="insight-val text-warning" id="ins-congestion">15%</span>
+                            </div>
+                            <div class="insight-card">
+                                <span class="insight-title">Predicted Wait</span>
+                                <span class="insight-val text-white" id="ins-pred-wait">65 sec</span>
+                            </div>
+                            <div class="insight-card">
+                                <span class="insight-title">Predicted Density</span>
+                                <span class="insight-val text-success" id="ins-pred-density">LOW</span>
+                            </div>
+                            <div class="insight-card">
+                                <span class="insight-title">AI Confidence</span>
+                                <span class="insight-val text-warning" id="ins-confidence">98.5%</span>
+                            </div>
+                            <div class="insight-card">
+                                <span class="insight-title">System Efficiency</span>
+                                <span class="insight-val text-success" id="ins-efficiency">94.2%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Signal Decision & Action -->
+                    <div class="cc-card col-6">
+                        <div class="cc-card-header">
+                            <span class="cc-card-title"><i class="fa-solid fa-brain text-warning"></i> AI Adaptive Controller</span>
+                        </div>
+                        <div class="rec-box font-mono">
+                            <div class="rec-header d-flex justify-content-between align-items-center">
+                                <strong class="text-warning fs-6" id="rec-decision">Standard Cycle Active</strong>
+                                <span class="priority-badge priority-medium" id="rec-priority">Medium Priority</span>
+                            </div>
+                            <div class="small text-muted" id="rec-reason">Reason: Balanced distribution across lanes.</div>
+                            <div class="small text-success" id="rec-improvement">Expected Improvement: +25% Flow Speed</div>
+                            <div class="small text-secondary" id="rec-action">Suggested Action: Maintain standard 35s Green phase</div>
+                            <div class="small text-warning text-end">Confidence: <strong id="rec-confidence-val">98.5%</strong></div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Grid -->
+                    <div class="cc-card col-3 hide-in-presentation">
+                        <div class="cc-card-header">
+                            <span class="cc-card-title"><i class="fa-solid fa-chart-pie text-warning"></i> Vehicle Distribution</span>
+                        </div>
+                        <div class="chart-container-box">
+                            <canvas id="doughnutChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="cc-card col-3 hide-in-presentation">
+                        <div class="cc-card-header">
+                            <span class="cc-card-title"><i class="fa-solid fa-chart-line text-warning"></i> Traffic Flow Trend</span>
+                        </div>
+                        <div class="chart-container-box">
+                            <canvas id="lineTrendChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="cc-card col-3 hide-in-presentation">
+                        <div class="cc-card-header">
+                            <span class="cc-card-title"><i class="fa-solid fa-chart-column text-warning"></i> Density History</span>
+                        </div>
+                        <div class="chart-container-box">
+                            <canvas id="barDensityChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="cc-card col-3 hide-in-presentation">
+                        <div class="cc-card-header">
+                            <span class="cc-card-title"><i class="fa-solid fa-sliders text-warning"></i> Signal Timings</span>
+                        </div>
+                        <div class="chart-container-box">
+                            <canvas id="horizontalBarChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Live Notification Feed -->
+                    <div class="cc-card col-12">
+                        <div class="cc-card-header">
+                            <span class="cc-card-title"><i class="fa-solid fa-bell text-warning"></i> Tactical Alert Log Feed</span>
+                        </div>
+                        <div class="alerts-container font-mono" id="alerts-feed-list">
+                            <div class="alert-item">
+                                <span><i class="fa-solid fa-info-circle text-warning me-2"></i> Tactical Control Terminal Initialized.</span>
+                                <small class="text-muted">Just now</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- STARTUP STATUS MODAL -->
+    <div class="modal fade" id="startupStatusModal" tabindex="-1" aria-labelledby="startupModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-white border-secondary">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title text-warning font-mono" id="startupModalLabel"><i class="fa-solid fa-server me-2"></i> System Diagnostics</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="health-list font-mono">
+                        <div class="health-item">
+                            <span>Spring Boot Backend</span>
+                            <span id="dlg-status-backend" class="status-pill pill-online">ONLINE</span>
+                        </div>
+                        <div class="health-item">
+                            <span>Python AI Engine</span>
+                            <span id="dlg-status-ai" class="status-pill pill-online">ONLINE</span>
+                        </div>
+                        <div class="health-item">
+                            <span>MySQL Database</span>
+                            <span id="dlg-status-db" class="status-pill pill-online">ONLINE</span>
+                        </div>
+                        <div class="health-item">
+                            <span>Camera Feed</span>
+                            <span id="dlg-status-camera" class="status-pill pill-online">ONLINE</span>
+                        </div>
+                        <div class="health-item">
+                            <span>MJPEG Video Stream</span>
+                            <span id="dlg-status-stream" class="status-pill pill-online">ONLINE</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-outline-light btn-sm font-mono" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SETTINGS MODAL -->
+    <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-white border-secondary">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title text-warning font-mono" id="settingsModalLabel"><i class="fa-solid fa-gear me-2"></i> Terminal Configuration</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="health-list font-mono mb-3">
+                        <div class="health-item">
+                            <span>System Version</span>
+                            <strong class="text-warning">v3.0 Tactical</strong>
+                        </div>
+                        <div class="health-item">
+                            <span>Current Theme</span>
+                            <strong class="text-white">Military Radar Control Room</strong>
+                        </div>
+                        <div class="health-item">
+                            <span>Refresh Protocol</span>
+                            <strong class="text-success">STOMP WebSockets Realtime</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-amber-outline btn-sm font-mono" data-bs-dismiss="modal">Save Preferences</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart.js, SockJS, STOMP.js, Leaflet JS & Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

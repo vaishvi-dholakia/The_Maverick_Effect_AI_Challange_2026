@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Traffic Management Dashboard</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Live Toast Notification Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <header class="navbar">
+        <h1>Smart Traffic Management System</h1>
+        <div class="live-time">Current Time: <span id="clock">--:--:--</span></div>
+    </header>
+
+    <main class="container">
+        <!-- Live Telemetry Cards -->
+        <h2 class="section-title">Live Telemetry (WebSocket STOMP)</h2>
+        <div class="cards-grid">
+            <div class="card">
+                <span class="card-title">Total Vehicles</span>
+                <span class="card-value" id="val-total">Loading...</span>
+            </div>
+            <div class="card">
+                <span class="card-title">Cars</span>
+                <span class="card-value" id="val-cars">Loading...</span>
+            </div>
+            <div class="card">
+                <span class="card-title">Motorcycles</span>
+                <span class="card-value" id="val-motorcycles">Loading...</span>
+            </div>
+            <div class="card">
+                <span class="card-title">Buses</span>
+                <span class="card-value" id="val-buses">Loading...</span>
+            </div>
+            <div class="card">
+                <span class="card-title">Trucks</span>
+                <span class="card-value" id="val-trucks">Loading...</span>
+            </div>
+            <div class="card">
+                <span class="card-title">Traffic Density</span>
+                <span class="card-value" id="val-density">Loading...</span>
+            </div>
+            <div class="card">
+                <span class="card-title">Green Signal Time</span>
+                <span class="card-value" id="val-green-time">Loading...</span>
+            </div>
+            <div class="card">
+                <span class="card-title">Red Signal Time</span>
+                <span class="card-value" id="val-red-time">Loading...</span>
+            </div>
+            <div class="card">
+                <span class="card-title">Last Updated</span>
+                <span class="card-value" id="val-last-updated">Loading...</span>
+            </div>
+        </div>
+
+        <!-- KPI Performance Cards -->
+        <h2 class="section-title">Emission & Wait Time KPI Analytics</h2>
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <span class="card-title">Average Waiting Time (Before AI)</span>
+                <span class="card-value" id="kpi-wait-before">Loading...</span>
+            </div>
+            <div class="kpi-card">
+                <span class="card-title">Average Waiting Time (After AI)</span>
+                <span class="card-value" id="kpi-wait-after">Loading...</span>
+            </div>
+            <div class="kpi-card co2">
+                <span class="card-title">Estimated CO₂ Emission Reduction</span>
+                <span class="card-value" id="kpi-co2" style="color: var(--accent-green);">Loading...</span>
+            </div>
+        </div>
+
+        <!-- Analytics Charts -->
+        <h2 class="section-title">Traffic Analytics & Trends</h2>
+        <div class="charts-grid">
+            <div class="chart-card">
+                <span class="card-title">Vehicle Distribution</span>
+                <div class="chart-container">
+                    <canvas id="pieChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <span class="card-title">Traffic Trend Line</span>
+                <div class="chart-container">
+                    <canvas id="lineChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- GIS Junction & Route Optimization -->
+        <h2 class="section-title">GIS Map & Alternative Routes</h2>
+        <div class="map-section">
+            <div id="map"></div>
+            <div class="side-panel" id="routes-panel">
+                <h2>Alternative Routes</h2>
+                <div id="routes-list">Loading routes...</div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Dependencies: SockJS, STOMP.js, Chart.js, Leaflet JS -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="js/dashboard.js"></script>
+</body>
+</html>
