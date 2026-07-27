@@ -1,0 +1,2 @@
+# The_Maverick_Effect_AI_Challange_2026
+The_Maverick_Effect_AI_Challange-2026
