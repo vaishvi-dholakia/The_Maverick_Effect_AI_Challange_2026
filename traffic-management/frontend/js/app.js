@@ -130,8 +130,7 @@ document.addEventListener("DOMContentLoaded", () => {
         selectedCameraName = camName;
 
         document.querySelectorAll(".cam-manage-card").forEach(card => card.classList.remove("active"));
-        const activeCard = document.getElementById(`cam-card-${jId}`);
-        if (activeCard) activeCard.classList.add("active");
+        document.querySelectorAll(`[id="cam-card-${jId}"]`).forEach(card => card.classList.add("active"));
 
         const camImg = document.getElementById("cam-stream");
         const loadingOverlay = document.getElementById("cam-loading-overlay");
@@ -145,6 +144,7 @@ document.addEventListener("DOMContentLoaded", () => {
         setElemText("selected-cam-name", camName);
         setElemText("map-panel-jname", `${camName} (${jInfo.name})`);
         setElemText("map-panel-jid", `Stream: /video-feed/${jId}`);
+        setElemText("stream-info-cam", `CAM: ${jId}`);
 
         if (map) {
             map.flyTo([jInfo.lat, jInfo.lng], 15, { duration: 1.2 });
@@ -154,6 +154,55 @@ document.addEventListener("DOMContentLoaded", () => {
         addOpsTimeline(`Switched camera stream to ${camName}`);
         addAlert(`Switched video feed to ${camName}`, "info");
     };
+
+    // Search Suggestions and Quick Navigation Handler
+    const searchInput = document.getElementById("navbar-search-input");
+    const searchDropdown = document.getElementById("search-suggestions-dropdown");
+
+    if (searchInput && searchDropdown) {
+        searchInput.addEventListener("focus", () => {
+            searchDropdown.classList.remove("d-none");
+        });
+
+        searchInput.addEventListener("input", (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            searchDropdown.classList.remove("d-none");
+
+            const items = searchDropdown.querySelectorAll(".search-suggestion-item");
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                if (text.includes(query)) {
+                    item.style.display = "flex";
+                } else {
+                    item.style.display = "none";
+                }
+            });
+        });
+
+        searchDropdown.addEventListener("click", (e) => {
+            const item = e.target.closest(".search-suggestion-item");
+            if (!item) return;
+
+            const action = item.dataset.action;
+            if (action === "cam") {
+                const jId = item.dataset.jid;
+                const camName = item.dataset.name;
+                switchCamera(jId, camName);
+                searchInput.value = camName;
+            } else if (action === "tab") {
+                const tabId = item.dataset.tab;
+                switchTab(null, tabId);
+                searchInput.value = item.textContent.trim();
+            }
+            searchDropdown.classList.add("d-none");
+        });
+
+        document.addEventListener("click", (e) => {
+            if (!searchInput.contains(e.target) && !searchDropdown.contains(e.target)) {
+                searchDropdown.classList.add("d-none");
+            }
+        });
+    }
 
     // 1. Live Time and Date Clock
     function updateClock() {
@@ -665,11 +714,19 @@ document.addEventListener("DOMContentLoaded", () => {
         const redTime = data.redTime ?? 35;
 
         setElemText("map-panel-vehicles", totalVehicles);
+        setElemText("stream-info-vehicles", totalVehicles);
+        setElemText("stream-info-signal", `Green: ${greenTime}s | Red: ${redTime}s`);
 
         const levelElem = document.getElementById("map-panel-level");
         if (levelElem) {
             levelElem.className = `status-pill pill-${density === 'SEVERE' ? 'offline' : (density === 'HIGH' ? 'connecting' : 'online')}`;
             levelElem.textContent = density;
+        }
+
+        const streamDensityElem = document.getElementById("stream-info-density");
+        if (streamDensityElem) {
+            streamDensityElem.className = `status-pill pill-${density === 'SEVERE' ? 'offline' : (density === 'HIGH' ? 'connecting' : 'online')}`;
+            streamDensityElem.textContent = density;
         }
 
         const signalIndicator = document.getElementById("map-panel-signal-indicator");
@@ -692,6 +749,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (density === "HIGH") recommendation = "Extended Green for Lane Clearance";
         if (density === "SEVERE") recommendation = "Maximum Priority Green Signal";
         setElemText("map-panel-recommendation", recommendation);
+        setElemText("stream-info-recommendation", recommendation);
 
         const jId = data.junctionId || "J101";
         if (mapMarkers[jId]) {

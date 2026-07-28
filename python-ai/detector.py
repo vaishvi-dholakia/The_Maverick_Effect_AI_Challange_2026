@@ -33,20 +33,20 @@ def generate_frames(junction_id="J101"):
     video_rel, start_offset = JUNCTION_VIDEOS.get(junction_id, ("videos/traffic.mp4", 0))
     full_video_path = os.path.join(base_dir, video_rel)
 
-    # Check if specific video file exists, else fallback to traffic.mp4
+    # Check if specific video file exists for this junction
     if not os.path.exists(full_video_path):
-        full_video_path = os.path.join(base_dir, "videos", "traffic.mp4")
-
-    if not os.path.exists(full_video_path):
-        print(f"Error: Video file not found at '{full_video_path}'.")
+        print(f"Notice: Video file for {junction_id} not found at '{full_video_path}'. Displaying placeholder frame.")
         error_frame = np.zeros((600, 800, 3), dtype=np.uint8)
-        cv2.putText(error_frame, f"VIDEO FILE MISSING ({junction_id})", (120, 300),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 2)
+        cv2.putText(error_frame, "VIDEO IS NOT AVAILABLE", (180, 280),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 165, 255), 2)
+        cv2.putText(error_frame, f"Camera: {junction_id} | Add valid .mp4 to python-ai/videos/", (140, 340),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200, 200, 200), 1)
         ret, buffer = cv2.imencode('.jpg', error_frame)
         frame_bytes = buffer.tobytes()
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-        return
+        while True:
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+            time.sleep(1.0)
 
     model = get_yolo_model()
     byte_tracker = sv.ByteTrack()
@@ -54,8 +54,18 @@ def generate_frames(junction_id="J101"):
 
     cap = cv2.VideoCapture(full_video_path)
     if not cap.isOpened():
-        print(f"Error: Cannot open video file '{full_video_path}'.")
-        return
+        print(f"Error: Cannot open video file '{full_video_path}'. File may be corrupt or link text.")
+        error_frame = np.zeros((600, 800, 3), dtype=np.uint8)
+        cv2.putText(error_frame, f"INVALID VIDEO FILE ({junction_id})", (160, 280),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 2)
+        cv2.putText(error_frame, "Copy real .mp4 video into python-ai/videos/", (170, 340),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200, 200, 200), 1)
+        ret, buffer = cv2.imencode('.jpg', error_frame)
+        frame_bytes = buffer.tobytes()
+        while True:
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+            time.sleep(1.0)
 
     if start_offset > 0:
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 1000)
@@ -123,16 +133,7 @@ def generate_frames(junction_id="J101"):
             send_traffic_data(payload)
             last_api_send_time = curr_time
 
-        # Render On-Screen HUD Overlay
-        cv2.rectangle(frame, (10, 10), (480, 160), (0, 0, 0), -1)
-        cv2.putText(frame, f"CAM: {junction_id} | Vehicles: {total_vehicles}", (20, 35),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-        cv2.putText(frame, f"Traffic Density: {density_label}", (20, 60),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, density_color, 2)
-        cv2.putText(frame, f"Green Time: {timing['green']} sec | Red Time: {timing['red']} sec", (20, 90),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 255), 2)
-        cv2.putText(frame, f"Rec: {timing['recommendation']}", (20, 115),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
+        # Clear video stream output (Telemetry displayed cleanly under video in web UI)
 
         resized_frame = cv2.resize(frame, (800, 600))
         ret_encode, buffer = cv2.imencode('.jpg', resized_frame)
