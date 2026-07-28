@@ -1,0 +1,19 @@
+# Python AI Module Ignore List
+__pycache__/
+*.pyc
+*.pt
+yolov8n.pt
+.venv/
+venv/
+
+# Do not push large video files
+videos/
+*.mp4
+*.avi
+*.mkv
+*.log
+
+# General IDE
+.vscode/
+.idea/
+.DS_Store
