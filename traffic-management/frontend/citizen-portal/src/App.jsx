@@ -160,7 +160,10 @@ export default function App() {
 
   // Quick Action Primary Navigation handler
   const handleSelectNavPage = (pageKey) => {
-    if (pageKey === 'routes') {
+    if (pageKey === 'home') {
+      setActiveTab('home');
+      setActiveModal(null);
+    } else if (pageKey === 'routes') {
       setActiveTab('routes');
       setActiveModal(null);
     } else if (pageKey === 'greenwave') {

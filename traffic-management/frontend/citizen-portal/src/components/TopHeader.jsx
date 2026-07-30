@@ -52,7 +52,7 @@ export default function TopHeader({
 
           <div>
             <h1 style={{ fontSize: '1.05rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-              {getGreeting()}, Alex 👋
+              {getGreeting()}, User 👋
             </h1>
             <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
               {cityName}
