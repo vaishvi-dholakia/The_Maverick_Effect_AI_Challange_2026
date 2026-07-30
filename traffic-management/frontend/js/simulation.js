@@ -75,6 +75,75 @@ window.TrafficSimulation = (function () {
 
     const junctions = {};
 
+    // Auto-Save Telemetry to Spring Boot MySQL backend (Every 2-5 seconds)
+    let lastAutoSaveTime = 0;
+    const AUTO_SAVE_INTERVAL_MS = 3000;
+
+    async function sendTrafficUpdateToBackend(jState) {
+        if (!jState) return;
+
+        const payload = {
+            junctionId: jState.id,
+            junctionName: jState.name,
+            cameraId: "CAM-" + jState.id,
+            totalVehicles: jState.currentCount || 0,
+            vehicleCount: jState.currentCount || 0,
+            cars: jState.carsCount || 0,
+            carCount: jState.carsCount || 0,
+            motorcycles: jState.bikesCount || 0,
+            bikeCount: jState.bikesCount || 0,
+            buses: jState.busesCount || 0,
+            busCount: jState.busesCount || 0,
+            trucks: jState.trucksCount || 0,
+            truckCount: jState.trucksCount || 0,
+            ambulanceCount: jState.ambCount || 0,
+            density: jState.density || "LOW",
+            trafficDensity: jState.density || "LOW",
+            currentSignal: jState.signalState || "NS_GREEN",
+            remainingSignalTime: Math.ceil(jState.timer || 0),
+            greenTime: jState.greenTimeNS || 40,
+            redTime: jState.redTimeNS || 30,
+            aiRecommendedGreenTime: jState.greenTimeNS || 40,
+            queueLength: jState.queueLength || 0,
+            averageVehicleSpeed: typeof jState.avgSpeedKmH === 'number' ? Number(jState.avgSpeedKmH.toFixed(2)) : 42.0,
+            emergencyStatus: jState.isEmergencyActive ? "EMERGENCY_ACTIVE" : "NORMAL",
+            aiConfidence: jState.confidence || 98.4
+        };
+
+        console.log(`[Simulation Generated Data] Prepared snapshot for Junction ${jState.id}:`, payload);
+
+        try {
+            console.log(`[API Request Sent] POSTing live traffic update to http://localhost:8080/api/traffic/update for ${jState.id}`);
+            const response = await fetch("http://localhost:8080/api/traffic/update", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                const resData = await response.json();
+                console.log(`[Database Insert Success] MySQL persisted record for ${jState.id}:`, resData);
+            } else {
+                console.warn(`[Database Insert Failure] Backend HTTP error ${response.status} ${response.statusText} for ${jState.id}`);
+            }
+        } catch (err) {
+            console.error(`[API Connection Retry] Unable to send simulation snapshot to backend for ${jState.id}. Reason:`, err.message);
+        }
+    }
+
+    function triggerAutoSaveLoop(now) {
+        if (now - lastAutoSaveTime >= AUTO_SAVE_INTERVAL_MS) {
+            lastAutoSaveTime = now;
+            for (const jId in junctions) {
+                if (junctions[jId]) {
+                    sendTrafficUpdateToBackend(junctions[jId]);
+                }
+            }
+        }
+    }
+
     function initJunctionState(id) {
         return {
             id: id,
@@ -186,6 +255,9 @@ window.TrafficSimulation = (function () {
 
                 // STEP 12: Render selected junction
                 renderSelectedJunction();
+
+                // AUTO PERSISTENCE: Save telemetry to MySQL DB every 3s
+                triggerAutoSaveLoop(now);
 
             } catch (err) {
                 console.error("[SINGLE ENGINE FAILSAFE] Handled exception in step loop:", err);
