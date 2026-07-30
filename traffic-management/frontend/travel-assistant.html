@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartTraffic AI — AI Travel Assistant</title>
+    <meta name="description" content="AI Travel Assistant providing real-time weather, traffic prediction, best time to travel, road safety scores, visibility, road condition, expected delay, and AI recommendations with live updates.">
+
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --bg-main: #0f1217;
+            --bg-panel: #161a23;
+            --bg-surface: #1e2430;
+            --bg-card: #252d3d;
+            --accent-blue: #38bdf8;
+            --accent-green: #22c55e;
+            --accent-amber: #ffb000;
+            --accent-orange: #f97316;
+            --accent-purple: #a855f7;
+            --accent-red: #ef4444;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --border-glow: rgba(56, 189, 248, 0.3);
+            --font-heading: 'Inter', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-heading);
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Top Header Navbar */
+        .header-navbar {
+            background: rgba(22, 26, 35, 0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .brand-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-logo {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #a855f7, #38bdf8);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            color: #ffffff;
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+        }
+
+        .brand-title-group h1 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .brand-title-group p {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .live-status-pill {
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            color: #38bdf8;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: var(--font-mono);
+        }
+
+        .live-pulse {
+            width: 8px;
+            height: 8px;
+            background-color: #38bdf8;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #38bdf8;
+            animation: pulse-ring 1.5s infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(56, 189, 248, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.825rem;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .nav-btn:hover {
+            background: rgba(168, 85, 247, 0.15);
+            border-color: var(--accent-purple);
+            color: var(--accent-purple);
+        }
+
+        /* Page Layout Container */
+        .page-container {
+            max-width: 1350px;
+            margin: 0 auto;
+            padding: 24px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* Mandated Feature Showcase Banner: AI Recommendation & Example */
+        .ai-recommendation-hero {
+            background: linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(56, 189, 248, 0.15) 100%);
+            border: 1px solid rgba(168, 85, 247, 0.4);
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .hero-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .ai-avatar-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #a855f7, #38bdf8);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: #fff;
+            box-shadow: 0 0 25px rgba(168, 85, 247, 0.6);
+            flex-shrink: 0;
+        }
+
+        .hero-text-content {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .hero-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--accent-blue);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .hero-title {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: #ffffff;
+            line-height: 1.25;
+        }
+
+        /* Mandated Example Styling */
+        .example-highlight-box {
+            background: rgba(34, 197, 94, 0.15);
+            border: 1px solid rgba(34, 197, 94, 0.4);
+            border-radius: 12px;
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.2);
+        }
+
+        .example-time-tag {
+            font-size: 1.3rem;
+            font-weight: 900;
+            color: #ffffff;
+            background: #22c55e;
+            color: #000;
+            padding: 4px 12px;
+            border-radius: 8px;
+            font-family: var(--font-mono);
+        }
+
+        .example-delay-tag {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: #4ade80;
+            font-family: var(--font-mono);
+        }
+
+        /* Mandated Telemetry Grid (7 Required Fields) */
+        .telemetry-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+        }
+
+        .telemetry-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            position: relative;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .telemetry-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .telemetry-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+        }
+
+        .card-label {
+            font-size: 0.725rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            font-weight: 600;
+        }
+
+        .card-value {
+            font-size: 1.25rem;
+            font-weight: 800;
+            font-family: var(--font-mono);
+            color: #ffffff;
+        }
+
+        .card-subtext {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* 2-Column Main Workspace */
+        .workspace-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 992px) {
+            .workspace-grid { grid-template-columns: 1fr; }
+        }
+
+        .glass-panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 320px;
+        }
+
+        /* Route Selector Form */
+        .route-selector-box {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 14px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .form-select, .form-control {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.825rem;
+            outline: none;
+        }
+
+        .form-select:focus, .form-control:focus {
+            border-color: var(--accent-blue);
+        }
+
+        .live-ticker-badge {
+            font-size: 0.725rem;
+            color: var(--accent-green);
+            font-family: var(--font-mono);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .toast-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            background: var(--bg-surface);
+            border: 1px solid var(--accent-blue);
+            border-left: 4px solid var(--accent-blue);
+            border-radius: 8px;
+            padding: 12px 18px;
+            color: #fff;
+            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transform: translateX(120%);
+            transition: transform 0.3s ease;
+        }
+
+        .toast-notification.show { transform: translateX(0); }
+    </style>
+</head>
+<body>
+
+    <!-- Header Navbar -->
+    <header class="header-navbar">
+        <div class="brand-container">
+            <div class="brand-logo">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </div>
+            <div class="brand-title-group">
+                <h1>SmartTraffic AI <span style="font-size: 0.75rem; background: rgba(168,85,247,0.2); color: var(--accent-purple); padding: 2px 8px; border-radius: 4px; font-family: var(--font-mono);">AI TRAVEL ASSISTANT</span></h1>
+                <p>Real-Time Weather, Traffic Prediction & Route Optimizing Advisor</p>
+            </div>
+        </div>
+
+        <div class="header-controls">
+            <div class="live-status-pill">
+                <div class="live-pulse"></div>
+                <span>LIVE UPDATES ACTIVE</span>
+            </div>
+
+            <a href="index.html" class="nav-btn">
+                <i class="fa-solid fa-gauge-high"></i> Control Center
+            </a>
+            <a href="trips.html" class="nav-btn">
+                <i class="fa-solid fa-route"></i> My Trips
+            </a>
+            <a href="parking.html" class="nav-btn" style="color: #22c55e; border-color: rgba(34, 197, 94, 0.4);">
+                <i class="fa-solid fa-square-p"></i> Smart Parking
+            </a>
+            <a href="alerts.html" class="nav-btn" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.4);">
+                <i class="fa-solid fa-triangle-exclamation"></i> Live Alerts
+            </a>
+            <a href="citizen.html" class="nav-btn">
+                <i class="fa-solid fa-users"></i> Citizen Portal
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="page-container">
+
+        <!-- MANDATED HERO SHOWCASE BANNER: AI RECOMMENDATION & EXAMPLE -->
+        <div class="ai-recommendation-hero">
+            <div class="hero-left">
+                <div class="ai-avatar-icon">
+                    <i class="fa-solid fa-brain"></i>
+                </div>
+                <div class="hero-text-content">
+                    <div class="hero-label">
+                        <i class="fa-solid fa-sparkles"></i> AI Smart Travel Recommendation
+                    </div>
+                    <!-- Mandated Example Output Text -->
+                    <div class="hero-title" id="ai-rec-text">
+                        Travel after 5 PM. Expected delay reduced by 18%.
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">
+                        Optimal travel window determined using live weather radar and predictive traffic congestion models.
+                    </div>
+                </div>
+            </div>
+
+            <div class="example-highlight-box">
+                <div>
+                    <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Best Departure Time</div>
+                    <!-- Mandated Example Pill 1 -->
+                    <div class="example-time-tag" id="rec-time-pill">Travel after 5 PM</div>
+                </div>
+                <div style="border-left: 1px solid rgba(255,255,255,0.15); padding-left: 16px;">
+                    <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Congestion Relief</div>
+                    <!-- Mandated Example Pill 2 -->
+                    <div class="example-delay-tag" id="rec-relief-pill">Expected delay reduced by 18%</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MANDATED TELEMETRY GRID: ALL REQUIRED PARAMETERS -->
+        <div>
+            <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+                <span><i class="fa-solid fa-microchip text-purple"></i> Live Environmental & Route Telemetry</span>
+                <span class="live-ticker-badge" id="live-ticker-text">
+                    <span class="live-pulse"></span> Everything updating live (2s ago)
+                </span>
+            </div>
+
+            <div class="telemetry-grid">
+                <!-- 1. Current Weather -->
+                <div class="telemetry-card">
+                    <div class="telemetry-card-header">
+                        <span class="card-label">Current Weather</span>
+                        <div class="card-icon" style="background: rgba(56, 189, 248, 0.15); color: var(--accent-blue);">
+                            <i class="fa-solid fa-cloud-sun"></i>
+                        </div>
+                    </div>
+                    <span class="card-value" id="val-weather">28°C Partly Cloudy</span>
+                    <span class="card-subtext" id="val-weather-sub">Wind: 14 km/h • Humidity: 62%</span>
+                </div>
+
+                <!-- 2. Traffic Prediction -->
+                <div class="telemetry-card">
+                    <div class="telemetry-card-header">
+                        <span class="card-label">Traffic Prediction</span>
+                        <div class="card-icon" style="background: rgba(249, 115, 22, 0.15); color: var(--accent-orange);">
+                            <i class="fa-solid fa-chart-area"></i>
+                        </div>
+                    </div>
+                    <span class="card-value" id="val-traffic-pred" style="color: var(--accent-orange);">Heavy Congestion</span>
+                    <span class="card-subtext" id="val-traffic-pred-sub">Peak hour buildup 4:30 PM - 5:00 PM</span>
+                </div>
+
+                <!-- 3. Best Time to Travel -->
+                <div class="telemetry-card" style="border-color: rgba(34, 197, 94, 0.4);">
+                    <div class="telemetry-card-header">
+                        <span class="card-label">Best Time to Travel</span>
+                        <div class="card-icon" style="background: rgba(34, 197, 94, 0.15); color: var(--accent-green);">
+                            <i class="fa-solid fa-clock"></i>
+                        </div>
+                    </div>
+                    <span class="card-value" id="val-best-time" style="color: var(--accent-green);">After 5:00 PM</span>
+                    <span class="card-subtext">Optimal Window: 5:15 PM - 7:00 PM</span>
+                </div>
+
+                <!-- 4. Road Safety -->
+                <div class="telemetry-card">
+                    <div class="telemetry-card-header">
+                        <span class="card-label">Road Safety</span>
+                        <div class="card-icon" style="background: rgba(34, 197, 94, 0.15); color: var(--accent-green);">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </div>
+                    </div>
+                    <span class="card-value" id="val-safety" style="color: var(--accent-green);">Score: 92/100</span>
+                    <span class="card-subtext">Optimal Driving Conditions</span>
+                </div>
+
+                <!-- 5. Visibility -->
+                <div class="telemetry-card">
+                    <div class="telemetry-card-header">
+                        <span class="card-label">Visibility</span>
+                        <div class="card-icon" style="background: rgba(56, 189, 248, 0.15); color: var(--accent-blue);">
+                            <i class="fa-solid fa-eye"></i>
+                        </div>
+                    </div>
+                    <span class="card-value" id="val-visibility">8.5 km</span>
+                    <span class="card-subtext">Clear Line of Sight</span>
+                </div>
+
+                <!-- 6. Road Condition -->
+                <div class="telemetry-card">
+                    <div class="telemetry-card-header">
+                        <span class="card-label">Road Condition</span>
+                        <div class="card-icon" style="background: rgba(255, 176, 0, 0.15); color: var(--accent-amber);">
+                            <i class="fa-solid fa-road"></i>
+                        </div>
+                    </div>
+                    <span class="card-value" id="val-road-cond">Dry & Clear</span>
+                    <span class="card-subtext">Asphalt Friction: Excellent</span>
+                </div>
+
+                <!-- 7. Expected Delay -->
+                <div class="telemetry-card">
+                    <div class="telemetry-card-header">
+                        <span class="card-label">Expected Delay</span>
+                        <div class="card-icon" style="background: rgba(239, 68, 68, 0.15); color: var(--accent-red);">
+                            <i class="fa-solid fa-stopwatch"></i>
+                        </div>
+                    </div>
+                    <span class="card-value" id="val-expected-delay" style="color: var(--accent-red);">+14 mins</span>
+                    <span class="card-subtext" id="val-delay-sub">Reduced to +2 mins after 5 PM</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- WORKSPACE GRID: PREDICTION CHART & ADVISORY DETAILS -->
+        <div class="workspace-grid">
+            <!-- Left Side: Interactive Hourly Delay Prediction Chart -->
+            <div class="glass-panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <i class="fa-solid fa-chart-line text-info"></i>
+                        <span>Hourly Travel Delay & Congestion Forecast</span>
+                    </div>
+
+                    <div class="route-selector-box">
+                        <span style="font-size: 0.775rem; font-weight: 700; color: var(--text-muted);"><i class="fa-solid fa-route"></i> Select Route:</span>
+                        <select id="route-select" class="form-select">
+                            <option value="route1">Home (Westside) → Tech Park Central</option>
+                            <option value="route2">Downtown Hub → Airport Expressway</option>
+                            <option value="route3">Railway Station → Hospital Bypass</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="delayPredictionChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Right Side: AI Assistant Smart Insights -->
+            <div class="glass-panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <i class="fa-solid fa-robot text-purple"></i>
+                        <span>AI Assistant Route Insights</span>
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 14px;">
+                    <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 6px;">
+                        <div style="font-size: 0.85rem; font-weight: 700; color: var(--accent-purple);">
+                            <i class="fa-solid fa-lightbulb me-1"></i> Peak Congestion Avoidance
+                        </div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">
+                            Traffic along Central Avenue spikes by 42% between 4:15 PM and 4:55 PM. Leaving after 5:00 PM yields an 18% reduction in total trip delay.
+                        </div>
+                    </div>
+
+                    <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 6px;">
+                        <div style="font-size: 0.85rem; font-weight: 700; color: var(--accent-green);">
+                            <i class="fa-solid fa-leaf me-1"></i> Green Corridor Synchronization
+                        </div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">
+                            Hospital Bypass signals are synchronized for a 52 km/h smooth green wave starting at 5:15 PM.
+                        </div>
+                    </div>
+
+                    <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 6px;">
+                        <div style="font-size: 0.85rem; font-weight: 700; color: var(--accent-blue);">
+                            <i class="fa-solid fa-cloud-sun me-1"></i> Weather Impact Forecast
+                        </div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">
+                            Light rain expected to clear by 4:45 PM. Road surfaces will remain dry with 8.5 km high visibility.
+                        </div>
+                    </div>
+
+                    <button class="nav-btn" id="btn-simulate-shift" style="justify-content: center; background: rgba(168, 85, 247, 0.15); border-color: rgba(168, 85, 247, 0.4); color: #c084fc;">
+                        <i class="fa-solid fa-arrows-rotate"></i> Simulate Live Environmental Shift
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Notification Toast -->
+    <div class="toast-notification" id="toast">
+        <i class="fa-solid fa-sparkles text-purple fs-5"></i>
+        <div id="toast-message">AI Travel Assistant live telemetry updated.</div>
+    </div>
+
+    <!-- Script Engine -->
+    <script>
+        /**
+         * AI Travel Assistant Engine
+         * Manages live weather telemetry, traffic predictions, delay charts,
+         * AI recommendations ("Travel after 5 PM. Expected delay reduced by 18%"),
+         * and real-time live data updates without page refresh.
+         */
+
+        // Forecast Data per route
+        const routeForecasts = {
+            route1: {
+                hours: ['3:00 PM', '3:30 PM', '4:00 PM', '4:30 PM', '5:00 PM', '5:30 PM', '6:00 PM', '6:30 PM'],
+                delays: [4, 8, 14, 22, 18, 5, 3, 2], // mins
+                recTime: "Travel after 5 PM",
+                recRelief: "Expected delay reduced by 18%",
+                recFullText: "Travel after 5 PM. Expected delay reduced by 18%."
+            },
+            route2: {
+                hours: ['3:00 PM', '3:30 PM', '4:00 PM', '4:30 PM', '5:00 PM', '5:30 PM', '6:00 PM', '6:30 PM'],
+                delays: [6, 12, 28, 35, 24, 10, 6, 4],
+                recTime: "Travel after 5:30 PM",
+                recRelief: "Expected delay reduced by 31%",
+                recFullText: "Travel after 5:30 PM. Expected delay reduced by 31%."
+            },
+            route3: {
+                hours: ['3:00 PM', '3:30 PM', '4:00 PM', '4:30 PM', '5:00 PM', '5:30 PM', '6:00 PM', '6:30 PM'],
+                delays: [2, 5, 10, 16, 12, 4, 2, 1],
+                recTime: "Travel after 5 PM",
+                recRelief: "Expected delay reduced by 25%",
+                recFullText: "Travel after 5 PM. Expected delay reduced by 25%."
+            }
+        };
+
+        // State Variables
+        let currentRoute = 'route1';
+        let chartInstance = null;
+        let weatherTemp = 28;
+        let safetyScore = 92;
+
+        // Initialize Chart.js Forecast Chart
+        function initChart() {
+            const ctx = document.getElementById('delayPredictionChart').getContext('2d');
+            const fc = routeForecasts[currentRoute];
+
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: fc.hours,
+                    datasets: [{
+                        label: 'Expected Delay (Minutes)',
+                        data: fc.delays,
+                        backgroundColor: fc.delays.map(d => d >= 18 ? 'rgba(239, 68, 68, 0.7)' : d >= 10 ? 'rgba(249, 115, 22, 0.7)' : 'rgba(34, 197, 94, 0.7)'),
+                        borderColor: fc.delays.map(d => d >= 18 ? '#ef4444' : d >= 10 ? '#f97316' : '#22c55e'),
+                        borderWidth: 2,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#161a23',
+                            titleColor: '#38bdf8',
+                            bodyColor: '#fff',
+                            borderWidth: 1,
+                            borderColor: 'rgba(255,255,255,0.1)'
+                        }
+                    },
+                    scales: {
+                        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af' } },
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af' } }
+                    }
+                }
+            });
+        }
+
+        // Update Forecast & UI
+        function updateForecastUI() {
+            const fc = routeForecasts[currentRoute];
+
+            // Update Mandated Hero Recommendation & Example text
+            document.getElementById('ai-rec-text').innerText = fc.recFullText;
+            document.getElementById('rec-time-pill').innerText = fc.recTime;
+            document.getElementById('rec-relief-pill').innerText = fc.recRelief;
+
+            // Update Chart
+            if (chartInstance) {
+                chartInstance.data.labels = fc.hours;
+                chartInstance.data.datasets[0].data = fc.delays;
+                chartInstance.data.datasets[0].backgroundColor = fc.delays.map(d => d >= 18 ? 'rgba(239, 68, 68, 0.7)' : d >= 10 ? 'rgba(249, 115, 22, 0.7)' : 'rgba(34, 197, 94, 0.7)');
+                chartInstance.data.datasets[0].borderColor = fc.delays.map(d => d >= 18 ? '#ef4444' : d >= 10 ? '#f97316' : '#22c55e');
+                chartInstance.update();
+            }
+        }
+
+        // EVERYTHING UPDATES LIVE ENGINE
+        function startLiveUpdatesEngine() {
+            setInterval(() => {
+                // Fluctuate weather temp slightly (27.5°C to 28.5°C)
+                weatherTemp = Math.floor(27 + Math.random() * 2);
+                document.getElementById('val-weather').innerText = `${weatherTemp}°C Partly Cloudy`;
+
+                // Fluctuate safety score (90 to 95)
+                safetyScore = Math.floor(90 + Math.random() * 5);
+                document.getElementById('val-safety').innerText = `Score: ${safetyScore}/100`;
+
+                // Update ticker timestamp
+                document.getElementById('live-ticker-text').innerHTML = `<span class="live-pulse"></span> Everything updating live (${new Date().toLocaleTimeString()})`;
+            }, 7000);
+        }
+
+        // Toast Helper
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => { toast.classList.remove('show'); }, 3500);
+        }
+
+        // Setup Event Handlers
+        function setupEventListeners() {
+            document.getElementById('route-select').addEventListener('change', (e) => {
+                currentRoute = e.target.value;
+                updateForecastUI();
+                showToast("Route updated. Recalculating AI delay prediction.");
+            });
+
+            document.getElementById('btn-simulate-shift').addEventListener('click', () => {
+                weatherTemp = 26;
+                document.getElementById('val-weather').innerText = "26°C Clear Sky";
+                document.getElementById('val-road-cond').innerText = "Dry Asphalt • Optimal Grip";
+                showToast("Simulated live weather shift: Cleared to dry conditions.");
+            });
+        }
+
+        // DOM Initializer
+        document.addEventListener('DOMContentLoaded', () => {
+            initChart();
+            updateForecastUI();
+            setupEventListeners();
+            startLiveUpdatesEngine();
+        });
+    </script>
+</body>
+</html>

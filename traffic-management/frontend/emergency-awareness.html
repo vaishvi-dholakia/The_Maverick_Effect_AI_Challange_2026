@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartTraffic AI — Emergency Awareness & Green Corridor</title>
+    <meta name="description" content="Autonomous Emergency Awareness system that automatically detects nearby ambulances, displays Green Corridor Active status, yield warnings, estimated duration, ambulance path, affected roads, and auto-hides after the ambulance passes with zero user interaction required.">
+
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Font Awesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-main: #0f1217;
+            --bg-panel: #161a23;
+            --bg-surface: #1e2430;
+            --accent-red: #ef4444;
+            --accent-green: #22c55e;
+            --accent-amber: #ffb000;
+            --accent-blue: #38bdf8;
+            --accent-purple: #a855f7;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --border-red-glow: rgba(239, 68, 68, 0.5);
+            --font-heading: 'Inter', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-heading);
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Top Header Navbar */
+        .header-navbar {
+            background: rgba(22, 26, 35, 0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .brand-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-logo {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            color: #ffffff;
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
+            animation: pulse-logo 1.5s infinite;
+        }
+
+        @keyframes pulse-logo {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        .brand-title-group h1 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .brand-title-group p {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.825rem;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .nav-btn:hover {
+            background: rgba(239, 68, 68, 0.15);
+            border-color: var(--accent-red);
+            color: var(--accent-red);
+        }
+
+        /* Full-Width Autonomous Emergency Awareness Banner (Auto-Display / Auto-Hide) */
+        .emergency-awareness-banner {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.25) 0%, rgba(15, 23, 42, 0.95) 100%);
+            border-bottom: 2px solid var(--accent-red);
+            box-shadow: 0 4px 30px rgba(239, 68, 68, 0.3);
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            z-index: 999;
+            transform: translateY(-100%);
+            opacity: 0;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .emergency-awareness-banner.active {
+            transform: translateY(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .banner-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .siren-icon-box {
+            width: 48px;
+            height: 48px;
+            background: #ef4444;
+            color: #ffffff;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: 0 0 20px #ef4444;
+            animation: siren-flash 0.8s infinite alternate;
+        }
+
+        @keyframes siren-flash {
+            0% { background: #ef4444; box-shadow: 0 0 15px #ef4444; }
+            100% { background: #38bdf8; box-shadow: 0 0 25px #38bdf8; }
+        }
+
+        .banner-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        /* Mandated Display Elements */
+        .banner-title {
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: #ffffff;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-badge-green {
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid rgba(34, 197, 94, 0.5);
+            color: #4ade80;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .banner-subtext {
+            font-size: 0.85rem;
+            color: #fde68a;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .banner-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .duration-box {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            border-radius: 10px;
+            padding: 8px 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .duration-label {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+        }
+
+        .duration-timer {
+            font-size: 1.3rem;
+            font-weight: 800;
+            font-family: var(--font-mono);
+            color: var(--accent-red);
+        }
+
+        /* 2-Column Split Workspace */
+        .workspace {
+            display: grid;
+            grid-template-columns: 1fr 440px;
+            flex-grow: 1;
+            height: calc(100vh - 170px);
+            position: relative;
+        }
+
+        @media (max-width: 992px) {
+            .workspace {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+        }
+
+        /* Map Area */
+        .map-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            min-height: 450px;
+            background: #111;
+        }
+
+        #emergency-map {
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .map-overlay-hud {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            z-index: 10;
+            background: rgba(22, 26, 35, 0.88);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.75rem;
+            font-family: var(--font-mono);
+            color: var(--text-main);
+        }
+
+        .map-legend {
+            position: absolute;
+            bottom: 20px;
+            left: 16px;
+            z-index: 10;
+            background: rgba(22, 26, 35, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 0.725rem;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-width: 260px;
+        }
+
+        .legend-title {
+            font-weight: 700;
+            color: var(--accent-red);
+            text-transform: uppercase;
+            font-size: 0.65rem;
+            margin-bottom: 2px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-muted);
+        }
+
+        .legend-line {
+            width: 20px;
+            height: 4px;
+            border-radius: 2px;
+        }
+
+        /* Emergency Status Feed Panel */
+        .status-feed-panel {
+            background: var(--bg-panel);
+            border-left: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow-y: auto;
+            padding: 20px;
+            gap: 16px;
+        }
+
+        .section-box {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .box-title {
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        /* Affected Roads List */
+        .affected-road-item {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            border-radius: 8px;
+            padding: 10px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.8rem;
+        }
+
+        .road-name {
+            font-weight: 700;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .road-status-tag {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+            font-size: 0.7rem;
+            font-family: var(--font-mono);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 700;
+        }
+
+        /* Path Milestones List */
+        .path-milestone {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.8rem;
+            position: relative;
+            padding-left: 6px;
+        }
+
+        .milestone-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            box-shadow: 0 0 10px var(--accent-green);
+            flex-shrink: 0;
+            z-index: 2;
+        }
+
+        .milestone-dot.active {
+            background: #ef4444;
+            box-shadow: 0 0 15px #ef4444;
+            animation: pulse-ring 1s infinite;
+        }
+
+        .milestone-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .milestone-name { font-weight: 700; color: #fff; }
+        .milestone-sub { font-size: 0.725rem; color: var(--text-muted); }
+
+        /* Marker CSS */
+        .leaflet-ambulance-marker {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #ef4444;
+            color: #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 20px #ef4444;
+            border: 2px solid #fff;
+            font-size: 1.1rem;
+            animation: pulse-marker 1s infinite;
+        }
+
+        @keyframes pulse-marker {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.8); }
+            70% { transform: scale(1.1); box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        .trigger-demo-btn {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: #fff;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+            transition: all 0.2s ease;
+        }
+
+        .trigger-demo-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.6);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top Header Navbar -->
+    <header class="header-navbar">
+        <div class="brand-container">
+            <div class="brand-logo">
+                <i class="fa-solid fa-truck-medical"></i>
+            </div>
+            <div class="brand-title-group">
+                <h1>SmartTraffic AI <span style="font-size: 0.75rem; background: rgba(239,68,68,0.2); color: var(--accent-red); padding: 2px 8px; border-radius: 4px; font-family: var(--font-mono);">EMERGENCY AWARENESS</span></h1>
+                <p>Autonomous Proximity Detection & Green Corridor Priority</p>
+            </div>
+        </div>
+
+        <div class="header-controls">
+            <button class="trigger-demo-btn" id="btn-trigger-emergency">
+                <i class="fa-solid fa-bolt"></i> Simulate Ambulance Dispatch
+            </button>
+            <a href="index.html" class="nav-btn">
+                <i class="fa-solid fa-gauge-high"></i> Operator Portal
+            </a>
+            <a href="alerts.html" class="nav-btn" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.4);">
+                <i class="fa-solid fa-triangle-exclamation"></i> Live Alerts
+            </a>
+            <a href="citizen.html" class="nav-btn">
+                <i class="fa-solid fa-users"></i> Citizen Portal
+            </a>
+        </div>
+    </header>
+
+    <!-- MANDATED EMERGENCY AWARENESS BANNER (Auto-Shown / Auto-Hidden without user interaction) -->
+    <div class="emergency-awareness-banner" id="emergency-banner">
+        <div class="banner-left">
+            <div class="siren-icon-box">
+                <i class="fa-solid fa-truck-medical"></i>
+            </div>
+            <div class="banner-info">
+                <!-- Mandated Items 1 & 2 & 3 -->
+                <div class="banner-title">
+                    <span>🚑 Emergency Vehicle Nearby</span>
+                    <span class="status-badge-green">
+                        <i class="fa-solid fa-circle"></i> Green Corridor Active
+                    </span>
+                </div>
+                <div class="banner-subtext">
+                    <i class="fa-solid fa-triangle-exclamation text-warning"></i>
+                    <span><b>Please Yield Right of Way:</b> Clear rightmost lane immediately for Ambulance EMS-901!</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="banner-right">
+            <!-- Mandated Item 4: Estimated Duration -->
+            <div class="duration-box">
+                <span class="duration-label">Estimated Duration</span>
+                <span class="duration-timer" id="banner-timer">1m 45s</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Workspace Split Panel -->
+    <div class="workspace">
+        <!-- Map View -->
+        <div class="map-wrapper">
+            <div id="emergency-map"></div>
+
+            <div class="map-overlay-hud">
+                <i class="fa-solid fa-crosshairs text-danger"></i>
+                <span id="map-status-text">SYSTEM MONITORING • NO ACTIVE DISPATCH NEARBY</span>
+            </div>
+
+            <div class="map-legend">
+                <div class="legend-title">Emergency Layer Legend</div>
+                <div class="legend-item">
+                    <div class="legend-line" style="background: #22c55e; height: 5px;"></div>
+                    <span>Ambulance Green Corridor Path</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-line" style="background: #ef4444; height: 4px;"></div>
+                    <span>Affected Roads (Yield Required)</span>
+                </div>
+                <div class="legend-item">
+                    <div style="width: 14px; height: 14px; background: #ef4444; border-radius: 50%;"></div>
+                    <span>Ambulance Position (EMS-901)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side Panel: Path & Affected Roads -->
+        <div class="status-feed-panel">
+            
+            <!-- System Proximity Status -->
+            <div class="section-box" style="background: linear-gradient(135deg, rgba(239,68,68,0.1), rgba(15,23,42,0.9)); border-color: rgba(239,68,68,0.3);">
+                <div class="box-title" style="color: #f87171;">
+                    <i class="fa-solid fa-radar"></i> Emergency Radar Status
+                </div>
+                <div style="font-size: 0.85rem; color: #e2e8f0;" id="radar-description">
+                    Monitoring 5 km radius telemetry. System will automatically display Green Corridor overlay when an ambulance approaches.
+                </div>
+            </div>
+
+            <!-- Mandated Section: Display Ambulance Path -->
+            <div class="section-box">
+                <div class="box-title">
+                    <i class="fa-solid fa-route text-success"></i> Ambulance Path (Green Corridor)
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 14px;" id="path-milestones-container">
+                    <div class="path-milestone">
+                        <div class="milestone-dot active"></div>
+                        <div class="milestone-info">
+                            <span class="milestone-name">Junction A — Central Avenue</span>
+                            <span class="milestone-sub">Ambulance Current Position (EMS-901)</span>
+                        </div>
+                    </div>
+                    <div class="path-milestone">
+                        <div class="milestone-dot"></div>
+                        <div class="milestone-info">
+                            <span class="milestone-name">Junction B — Ring Road Expressway</span>
+                            <span class="milestone-sub">Signal Preemption Active (🟢 Green)</span>
+                        </div>
+                    </div>
+                    <div class="path-milestone">
+                        <div class="milestone-dot"></div>
+                        <div class="milestone-info">
+                            <span class="milestone-name">Junction C — Hospital Road Entrance</span>
+                            <span class="milestone-sub">Destination: City Trauma Center</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mandated Section: Display Affected Roads -->
+            <div class="section-box">
+                <div class="box-title">
+                    <i class="fa-solid fa-road-barrier text-warning"></i> Affected Roads (Yield Required)
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px;" id="affected-roads-container">
+                    <div class="affected-road-item">
+                        <div class="road-name">
+                            <i class="fa-solid fa-triangle-exclamation text-danger"></i> Central Avenue Northbound
+                        </div>
+                        <span class="road-status-tag">Lanes 1 & 2 Closed</span>
+                    </div>
+                    <div class="affected-road-item">
+                        <div class="road-name">
+                            <i class="fa-solid fa-triangle-exclamation text-warning"></i> Ring Road Ramp B
+                        </div>
+                        <span class="road-status-tag">Yield Right Lane</span>
+                    </div>
+                    <div class="affected-road-item">
+                        <div class="road-name">
+                            <i class="fa-solid fa-hospital text-info"></i> Hospital Road Corridor
+                        </div>
+                        <span class="road-status-tag">Priority Clearance</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Autonomous System Notice -->
+            <div style="font-size: 0.725rem; color: var(--text-muted); font-family: var(--font-mono); text-align: center; margin-top: auto; padding-top: 10px;">
+                ⚡ Zero interaction required. Banner auto-hides when ambulance clears zone.
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Emergency Awareness Script -->
+    <script>
+        /**
+         * Autonomous Emergency Awareness Engine
+         * Detects nearby ambulances, displays Green Corridor Active warning,
+         * animates ambulance path & affected roads on Leaflet map,
+         * tracks estimated duration countdown, and automatically hides after ambulance passes.
+         */
+
+        // Waypoints for Ambulance Path
+        const ambulanceWaypoints = [
+            { name: "Junction A — Central Avenue", lat: 23.0225, lng: 72.5714 },
+            { name: "Central Ave & 4th Main", lat: 23.0260, lng: 72.5750 },
+            { name: "Junction B — Ring Road Expressway", lat: 23.0300, lng: 72.5800 },
+            { name: "Hospital Access Ramp", lat: 23.0220, lng: 72.5680 },
+            { name: "Junction C — City Trauma Center", lat: 23.0150, lng: 72.5600 }
+        ];
+
+        // State variables
+        let map = null;
+        let ambulanceMarker = null;
+        let greenCorridorPolyline = null;
+        let affectedRoadsPolylines = [];
+        let simulationInterval = null;
+        let countdownTimer = null;
+        let currentWaypointIndex = 0;
+        let remainingSeconds = 105; // 1m 45s
+        let isEmergencyActive = false;
+
+        // Initialize Map
+        function initMap() {
+            map = L.map('emergency-map', { zoomControl: false }).setView([23.0240, 72.5720], 13);
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; CARTO &copy; OpenStreetMap',
+                maxZoom: 19
+            }).addTo(map);
+
+            L.control.zoom({ position: 'topright' }).addTo(map);
+        }
+
+        // Display Ambulance Path (Green Corridor Polyline)
+        function drawAmbulancePath() {
+            if (greenCorridorPolyline) map.removeLayer(greenCorridorPolyline);
+            affectedRoadsPolylines.forEach(p => map.removeLayer(p));
+            affectedRoadsPolylines = [];
+
+            const latLngs = ambulanceWaypoints.map(w => [w.lat, w.lng]);
+
+            // Glowing Green Corridor Line (Ambulance Path)
+            greenCorridorPolyline = L.polyline(latLngs, {
+                color: '#22c55e',
+                weight: 6,
+                opacity: 0.9,
+                dashArray: '10, 10'
+            }).addTo(map);
+
+            // Draw Affected Roads (Red Warning Polylines along adjacent lanes)
+            const affectedLatLngs = [
+                [[23.0225, 72.5714], [23.0260, 72.5750]],
+                [[23.0300, 72.5800], [23.0220, 72.5680]]
+            ];
+
+            affectedLatLngs.forEach(segment => {
+                const line = L.polyline(segment, {
+                    color: '#ef4444',
+                    weight: 8,
+                    opacity: 0.6
+                }).addTo(map);
+                affectedRoadsPolylines.push(line);
+            });
+        }
+
+        // Start Emergency Awareness Dispatch Sequence
+        function startEmergencyDispatch() {
+            if (isEmergencyActive) return;
+            isEmergencyActive = true;
+            currentWaypointIndex = 0;
+            remainingSeconds = 105; // 1 min 45 sec
+
+            // 1. Show Mandated Emergency Awareness Banner automatically (NO user interaction)
+            const banner = document.getElementById('emergency-banner');
+            banner.classList.add('active');
+
+            document.getElementById('map-status-text').innerText = "🚨 EMERGENCY DISPATCH ACTIVE • GREEN CORRIDOR IN PROGRESS";
+            document.getElementById('radar-description').innerText = "AMBULANCE EMS-901 DETECTED WITHIN 800M. Green wave signal priority locked.";
+
+            // 2. Draw Ambulance Path & Affected Roads on Map
+            drawAmbulancePath();
+
+            // 3. Add Ambulance Marker to Map
+            const startLoc = ambulanceWaypoints[0];
+            const ambIcon = L.divIcon({
+                className: 'custom-amb-marker-wrapper',
+                html: `<div class="leaflet-ambulance-marker" style="width: 38px; height: 38px;"><i class="fa-solid fa-truck-medical"></i></div>`,
+                iconSize: [38, 38],
+                iconAnchor: [19, 19]
+            });
+
+            if (ambulanceMarker) map.removeLayer(ambulanceMarker);
+            ambulanceMarker = L.marker([startLoc.lat, startLoc.lng], { icon: ambIcon }).addTo(map);
+            map.flyTo([startLoc.lat, startLoc.lng], 14, { animate: true });
+
+            // 4. Start Countdown Timer for Estimated Duration
+            updateTimerDisplay();
+            countdownTimer = setInterval(() => {
+                remainingSeconds--;
+                if (remainingSeconds <= 0) {
+                    remainingSeconds = 0;
+                }
+                updateTimerDisplay();
+            }, 1000);
+
+            // 5. Animate Ambulance Movement along Path
+            simulationInterval = setInterval(() => {
+                currentWaypointIndex++;
+                if (currentWaypointIndex < ambulanceWaypoints.length) {
+                    const wp = ambulanceWaypoints[currentWaypointIndex];
+                    ambulanceMarker.setLatLng([wp.lat, wp.lng]);
+                    map.panTo([wp.lat, wp.lng], { animate: true });
+                    updateMilestones(currentWaypointIndex);
+                } else {
+                    // Ambulance has passed and cleared the zone!
+                    endEmergencyDispatch();
+                }
+            }, 3500);
+        }
+
+        // Format Estimated Duration
+        function updateTimerDisplay() {
+            const mins = Math.floor(remainingSeconds / 60);
+            const secs = remainingSeconds % 60;
+            document.getElementById('banner-timer').innerText = `${mins}m ${secs < 10 ? '0' : ''}${secs}s`;
+        }
+
+        // Update Path Milestones
+        function updateMilestones(activeIndex) {
+            const container = document.getElementById('path-milestones-container');
+            container.innerHTML = '';
+
+            ambulanceWaypoints.forEach((wp, idx) => {
+                const isActive = idx === activeIndex;
+                const isPassed = idx < activeIndex;
+                
+                const item = document.createElement('div');
+                item.className = 'path-milestone';
+                item.innerHTML = `
+                    <div class="milestone-dot ${isActive ? 'active' : ''}" style="${isPassed ? 'background: #9ca3af; box-shadow: none;' : ''}"></div>
+                    <div class="milestone-info">
+                        <span class="milestone-name" style="${isPassed ? 'color: #9ca3af; text-decoration: line-through;' : ''}">${wp.name}</span>
+                        <span class="milestone-sub">${isActive ? '🚑 Ambulance Position' : isPassed ? 'Cleared' : 'Signal Preemption Locked'}</span>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        // MANDATED FEATURE: Hide automatically after ambulance passes (Zero user interaction)
+        function endEmergencyDispatch() {
+            clearInterval(simulationInterval);
+            clearInterval(countdownTimer);
+            isEmergencyActive = false;
+
+            // Smoothly auto-hide emergency banner
+            const banner = document.getElementById('emergency-banner');
+            banner.classList.remove('active');
+
+            document.getElementById('map-status-text').innerText = "SYSTEM MONITORING • NO ACTIVE DISPATCH NEARBY";
+            document.getElementById('radar-description').innerText = "Ambulance EMS-901 passed safely. Traffic signal timings restored to normal.";
+
+            // Remove polylines and marker
+            if (greenCorridorPolyline) map.removeLayer(greenCorridorPolyline);
+            affectedRoadsPolylines.forEach(p => map.removeLayer(p));
+            if (ambulanceMarker) map.removeLayer(ambulanceMarker);
+        }
+
+        // Setup Event Listeners
+        function setupEventListeners() {
+            document.getElementById('btn-trigger-emergency').addEventListener('click', () => {
+                if (isEmergencyActive) {
+                    endEmergencyDispatch();
+                }
+                startEmergencyDispatch();
+            });
+        }
+
+        // DOM Initializer
+        document.addEventListener('DOMContentLoaded', () => {
+            initMap();
+            setupEventListeners();
+
+            // Auto-trigger simulation after 2 seconds for hands-free demonstration!
+            setTimeout(() => {
+                startEmergencyDispatch();
+            }, 2000);
+        });
+    </script>
+</body>
+</html>

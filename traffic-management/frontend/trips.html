@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartTraffic AI — My Trips & Commuter Impact</title>
+    <meta name="description" content="Personalized My Trips dashboard displaying trips completed, time saved, fuel saved, CO2 reduced, money saved, average travel time, average speed, daily/weekly/monthly graphs, and commuter achievement badges (Eco Driver, Traffic Saver, Green Commuter).">
+
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --bg-main: #0f1217;
+            --bg-panel: #161a23;
+            --bg-surface: #1e2430;
+            --bg-card: #252d3d;
+            --accent-green: #22c55e;
+            --accent-amber: #ffb000;
+            --accent-blue: #38bdf8;
+            --accent-purple: #a855f7;
+            --accent-orange: #f97316;
+            --accent-pink: #ec4899;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --border-glow: rgba(34, 197, 94, 0.3);
+            --font-heading: 'Inter', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-heading);
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Top Header Navbar */
+        .header-navbar {
+            background: rgba(22, 26, 35, 0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .brand-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-logo {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #38bdf8, #22c55e);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            color: #000;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+        }
+
+        .brand-title-group h1 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .brand-title-group p {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .user-profile-badge {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--border-color);
+            padding: 4px 12px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+        }
+
+        .avatar-circle {
+            width: 26px;
+            height: 26px;
+            background: linear-gradient(135deg, #ffb000, #f97316);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 0.75rem;
+            color: #000;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.825rem;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .nav-btn:hover {
+            background: rgba(56, 189, 248, 0.15);
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+
+        /* Container Layout */
+        .page-container {
+            max-width: 1350px;
+            margin: 0 auto;
+            padding: 24px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* Mandated 7 Telemetry Metric Cards Grid */
+        .metrics-grid-7 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 16px;
+        }
+
+        .metric-card-box {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .metric-card-box:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+        }
+
+        .metric-card-box::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: var(--accent-blue);
+        }
+
+        .metric-card-box.theme-green::before { background: var(--accent-green); }
+        .metric-card-box.theme-amber::before { background: var(--accent-amber); }
+        .metric-card-box.theme-purple::before { background: var(--accent-purple); }
+        .metric-card-box.theme-orange::before { background: var(--accent-orange); }
+
+        .card-header-icon {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .icon-wrapper {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+        }
+
+        .trend-pill {
+            font-size: 0.675rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ade80;
+        }
+
+        .metric-label-text {
+            font-size: 0.725rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            font-weight: 600;
+        }
+
+        .metric-value-text {
+            font-size: 1.4rem;
+            font-weight: 800;
+            font-family: var(--font-mono);
+            color: #ffffff;
+            letter-spacing: -0.02em;
+        }
+
+        /* 2-Column Split: Graphs & Badges */
+        .analytics-section {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 992px) {
+            .analytics-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Graph Panel */
+        .glass-panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .panel-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Graph Time Tabs: Monthly, Weekly, Daily */
+        .tab-group {
+            display: flex;
+            background: var(--bg-surface);
+            padding: 3px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .graph-tab-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 0.775rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .graph-tab-btn:hover {
+            color: #fff;
+        }
+
+        .graph-tab-btn.active {
+            background: var(--accent-blue);
+            color: #000;
+            font-weight: 700;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 320px;
+        }
+
+        /* Mandated Badges Section */
+        .badges-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .badge-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 14px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            transition: all 0.25s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .badge-card:hover {
+            border-color: rgba(255, 255, 255, 0.25);
+            transform: translateX(4px);
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+        }
+
+        .badge-card.unlocked {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.08), rgba(30, 36, 48, 0.9));
+            border-color: rgba(34, 197, 94, 0.35);
+        }
+
+        .badge-icon-box {
+            width: 52px;
+            height: 52px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            flex-shrink: 0;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        .badge-details {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex-grow: 1;
+        }
+
+        .badge-name {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .badge-desc {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            line-height: 1.35;
+        }
+
+        .badge-status-tag {
+            font-size: 0.675rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            padding: 2px 8px;
+            border-radius: 10px;
+            display: inline-block;
+            align-self: flex-start;
+        }
+
+        .badge-status-tag.unlocked-tag {
+            background: rgba(34, 197, 94, 0.2);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.4);
+        }
+
+        /* Recent Trips History Table / Cards */
+        .trips-table-container {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        .trips-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.825rem;
+        }
+
+        .trips-table th {
+            background: var(--bg-surface);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            letter-spacing: 0.05em;
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .trips-table td {
+            padding: 14px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+        }
+
+        .trips-table tr:hover td {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .route-pill {
+            font-weight: 600;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .eco-saved-pill {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ade80;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .toast-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            background: var(--bg-surface);
+            border: 1px solid var(--accent-blue);
+            border-left: 4px solid var(--accent-blue);
+            border-radius: 8px;
+            padding: 12px 18px;
+            color: #fff;
+            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transform: translateX(120%);
+            transition: transform 0.3s ease;
+        }
+
+        .toast-notification.show { transform: translateX(0); }
+    </style>
+</head>
+<body>
+
+    <!-- Header Navbar -->
+    <header class="header-navbar">
+        <div class="brand-container">
+            <div class="brand-logo">
+                <i class="fa-solid fa-route"></i>
+            </div>
+            <div class="brand-title-group">
+                <h1>SmartTraffic AI <span style="font-size: 0.75rem; background: rgba(56,189,248,0.2); color: var(--accent-blue); padding: 2px 8px; border-radius: 4px; font-family: var(--font-mono);">MY TRIPS</span></h1>
+                <p>Personal Commuter Analytics & Eco-Impact Dashboard</p>
+            </div>
+        </div>
+
+        <div class="header-controls">
+            <div class="user-profile-badge">
+                <div class="avatar-circle">A</div>
+                <span style="font-weight: 600;">Alex Commuter</span>
+                <span style="color: var(--accent-green); font-size: 0.7rem; font-family: var(--font-mono); font-weight: 700;">★ LEVEL 5 ECO DRIVER</span>
+            </div>
+
+            <a href="index.html" class="nav-btn">
+                <i class="fa-solid fa-gauge-high"></i> Control Center
+            </a>
+            <a href="parking.html" class="nav-btn" style="color: #22c55e; border-color: rgba(34, 197, 94, 0.4);">
+                <i class="fa-solid fa-square-p"></i> Smart Parking
+            </a>
+            <a href="alerts.html" class="nav-btn" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.4);">
+                <i class="fa-solid fa-triangle-exclamation"></i> Live Alerts
+            </a>
+            <a href="citizen.html" class="nav-btn">
+                <i class="fa-solid fa-users"></i> Citizen Portal
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="page-container">
+        
+        <!-- SECTION 1: MANDATED 7 TELEMETRY METRIC CARDS -->
+        <div>
+            <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-chart-pie text-info"></i> Lifetime Commuter Performance & Impact
+            </div>
+
+            <div class="metrics-grid-7">
+                <!-- 1. Trips Completed -->
+                <div class="metric-card-box theme-amber">
+                    <div class="card-header-icon">
+                        <div class="icon-wrapper" style="background: rgba(255, 176, 0, 0.15); color: var(--accent-amber);">
+                            <i class="fa-solid fa-flag-checkered"></i>
+                        </div>
+                        <span class="trend-pill">+4 this week</span>
+                    </div>
+                    <span class="metric-label-text">Trips Completed</span>
+                    <span class="metric-value-text" id="val-trips">42 Trips</span>
+                </div>
+
+                <!-- 2. Time Saved -->
+                <div class="metric-card-box theme-purple">
+                    <div class="card-header-icon">
+                        <div class="icon-wrapper" style="background: rgba(168, 85, 247, 0.15); color: var(--accent-purple);">
+                            <i class="fa-solid fa-hourglass-half"></i>
+                        </div>
+                        <span class="trend-pill">AI Rerouting</span>
+                    </div>
+                    <span class="metric-label-text">Time Saved</span>
+                    <span class="metric-value-text" id="val-time-saved">18.5 hrs</span>
+                </div>
+
+                <!-- 3. Fuel Saved -->
+                <div class="metric-card-box theme-green">
+                    <div class="card-header-icon">
+                        <div class="icon-wrapper" style="background: rgba(34, 197, 94, 0.15); color: var(--accent-green);">
+                            <i class="fa-solid fa-gas-pump"></i>
+                        </div>
+                        <span class="trend-pill">Green Wave</span>
+                    </div>
+                    <span class="metric-label-text">Fuel Saved</span>
+                    <span class="metric-value-text" id="val-fuel-saved">34.2 Liters</span>
+                </div>
+
+                <!-- 4. CO2 Reduced -->
+                <div class="metric-card-box theme-green">
+                    <div class="card-header-icon">
+                        <div class="icon-wrapper" style="background: rgba(34, 197, 94, 0.15); color: var(--accent-green);">
+                            <i class="fa-solid fa-leaf"></i>
+                        </div>
+                        <span class="trend-pill">-28% Carbon</span>
+                    </div>
+                    <span class="metric-label-text">CO₂ Reduced</span>
+                    <span class="metric-value-text" id="val-co2-reduced">82.4 kg</span>
+                </div>
+
+                <!-- 5. Money Saved -->
+                <div class="metric-card-box theme-amber">
+                    <div class="card-header-icon">
+                        <div class="icon-wrapper" style="background: rgba(255, 176, 0, 0.15); color: var(--accent-amber);">
+                            <i class="fa-solid fa-wallet"></i>
+                        </div>
+                        <span class="trend-pill">Gas & Tolls</span>
+                    </div>
+                    <span class="metric-label-text">Money Saved</span>
+                    <span class="metric-value-text" id="val-money-saved">$145.80</span>
+                </div>
+
+                <!-- 6. Average Travel Time -->
+                <div class="metric-card-box theme-orange">
+                    <div class="card-header-icon">
+                        <div class="icon-wrapper" style="background: rgba(249, 115, 22, 0.15); color: var(--accent-orange);">
+                            <i class="fa-solid fa-stopwatch"></i>
+                        </div>
+                        <span class="trend-pill">Avg / Trip</span>
+                    </div>
+                    <span class="metric-label-text">Average Travel Time</span>
+                    <span class="metric-value-text" id="val-avg-time">18.4 mins</span>
+                </div>
+
+                <!-- 7. Average Speed -->
+                <div class="metric-card-box theme-blue">
+                    <div class="card-header-icon">
+                        <div class="icon-wrapper" style="background: rgba(56, 189, 248, 0.15); color: var(--accent-blue);">
+                            <i class="fa-solid fa-gauge-high"></i>
+                        </div>
+                        <span class="trend-pill">Optimal Pace</span>
+                    </div>
+                    <span class="metric-label-text">Average Speed</span>
+                    <span class="metric-value-text" id="val-avg-speed">48.6 km/h</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION 2: 2-COLUMN SPLIT (GRAPHS & BADGES) -->
+        <div class="analytics-section">
+            <!-- Left Side: Interactive Graphs Engine (Monthly, Weekly, Daily) -->
+            <div class="glass-panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <i class="fa-solid fa-chart-line text-info"></i>
+                        <span>Trip Performance & Savings Analytics</span>
+                    </div>
+
+                    <!-- Mandated 3 Graph View Options: Daily, Weekly, Monthly -->
+                    <div class="tab-group">
+                        <button class="graph-tab-btn" data-graph="daily">Daily Graph</button>
+                        <button class="graph-tab-btn active" data-graph="weekly">Weekly Graph</button>
+                        <button class="graph-tab-btn" data-graph="monthly">Monthly Graph</button>
+                    </div>
+                </div>
+
+                <!-- Chart Metric Selector -->
+                <div style="display: flex; align-items: center; gap: 12px; font-size: 0.775rem; color: var(--text-muted);">
+                    <span>Show Metric:</span>
+                    <select id="chart-metric-select" style="background: var(--bg-surface); border: 1px solid var(--border-color); color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.775rem; outline: none;">
+                        <option value="time">Time Saved (Minutes)</option>
+                        <option value="trips">Trips Completed</option>
+                        <option value="co2">CO₂ Emission Reduced (kg)</option>
+                        <option value="fuel">Fuel Saved (Liters)</option>
+                    </select>
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="tripsAnalyticsChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Right Side: Mandated Badges (Eco Driver, Traffic Saver, Green Commuter) -->
+            <div class="glass-panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <i class="fa-solid fa-award text-warning"></i>
+                        <span>Commuter Badges</span>
+                    </div>
+                    <span style="font-size: 0.75rem; color: var(--accent-green); font-weight: 700; font-family: var(--font-mono);">
+                        3 Unlocked
+                    </span>
+                </div>
+
+                <div class="badges-grid">
+                    <!-- Mandated Badge 1: Eco Driver -->
+                    <div class="badge-card unlocked">
+                        <div class="badge-icon-box" style="background: linear-gradient(135deg, #22c55e, #10b981); color: #000;">
+                            🌿
+                        </div>
+                        <div class="badge-details">
+                            <div class="badge-name">
+                                Eco Driver <i class="fa-solid fa-circle-check text-success"></i>
+                            </div>
+                            <div class="badge-desc">
+                                Maintained optimal eco-speed and reduced engine idling by 40%. Saved over 30 Liters of fuel!
+                            </div>
+                            <span class="badge-status-tag unlocked-tag">
+                                ★ Unlocked Gold Tier
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Mandated Badge 2: Traffic Saver -->
+                    <div class="badge-card unlocked">
+                        <div class="badge-icon-box" style="background: linear-gradient(135deg, #ffb000, #f97316); color: #000;">
+                            🚦
+                        </div>
+                        <div class="badge-details">
+                            <div class="badge-name">
+                                Traffic Saver <i class="fa-solid fa-circle-check text-warning"></i>
+                            </div>
+                            <div class="badge-desc">
+                                Bypassed 20+ heavy traffic bottlenecks using AI Rerouting & real-time incident alerts!
+                            </div>
+                            <span class="badge-status-tag unlocked-tag">
+                                ★ Unlocked Platinum Tier
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Mandated Badge 3: Green Commuter -->
+                    <div class="badge-card unlocked">
+                        <div class="badge-icon-box" style="background: linear-gradient(135deg, #38bdf8, #a855f7); color: #000;">
+                            ⚡
+                        </div>
+                        <div class="badge-details">
+                            <div class="badge-name">
+                                Green Commuter <i class="fa-solid fa-circle-check text-info"></i>
+                            </div>
+                            <div class="badge-desc">
+                                Reduced overall CO₂ footprint by 80+ kg through AI Green Wave synchronized signal corridors.
+                            </div>
+                            <span class="badge-status-tag unlocked-tag">
+                                ★ Unlocked Diamond Tier
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 10px; background: rgba(56, 189, 248, 0.08); border: 1px dashed rgba(56, 189, 248, 0.3); border-radius: 10px; padding: 12px; font-size: 0.775rem; color: #bae6fd; display: flex; align-items: center; gap: 10px;">
+                    <i class="fa-solid fa-trophy text-warning fs-4"></i>
+                    <div>
+                        <b style="color: #fff;">Next Level: Master Eco Commuter</b>
+                        <div style="color: var(--text-muted); margin-top: 2px;">Complete 8 more trips with AI Green Wave to unlock Level 6 badge!</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION 3: RECENT TRIPS LOG TABLE -->
+        <div class="glass-panel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <i class="fa-solid fa-clock-rotate-left text-primary"></i>
+                    <span>Recent Trip History & Rerouting Logs</span>
+                </div>
+                <button class="nav-btn" id="btn-export-log" style="font-size: 0.775rem; padding: 4px 10px;">
+                    <i class="fa-solid fa-file-arrow-down"></i> Export Trip Log
+                </button>
+            </div>
+
+            <div class="trips-table-container">
+                <table class="trips-table">
+                    <thead>
+                        <tr>
+                            <th>Date & Time</th>
+                            <th>Origin → Destination Route</th>
+                            <th>Travel Time</th>
+                            <th>Avg Speed</th>
+                            <th>Time Saved (AI)</th>
+                            <th>Fuel Saved</th>
+                            <th>CO₂ Reduced</th>
+                            <th>Eco Badge Impact</th>
+                        </tr>
+                    </thead>
+                    <tbody id="trips-log-body">
+                        <!-- Dynamic rows -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Notification Toast -->
+    <div class="toast-notification" id="toast">
+        <i class="fa-solid fa-circle-check text-info fs-5"></i>
+        <div id="toast-message">Trip log exported successfully!</div>
+    </div>
+
+    <!-- Analytics & Graph Script -->
+    <script>
+        /**
+         * My Trips Analytics Engine
+         * Handles dynamic rendering of Daily, Weekly, and Monthly graphs,
+         * 7 key metrics tracking, and commuter badge management.
+         */
+
+        // Dataset for Graphs (Daily, Weekly, Monthly)
+        const graphDatasets = {
+            daily: {
+                labels: ['6 AM', '8 AM', '10 AM', '12 PM', '2 PM', '4 PM', '6 PM', '8 PM'],
+                time: [5, 24, 12, 8, 15, 28, 35, 10], // mins saved
+                trips: [1, 3, 2, 1, 2, 4, 5, 2],
+                co2: [2.1, 9.4, 4.2, 3.1, 5.8, 11.2, 14.5, 3.8], // kg
+                fuel: [0.9, 3.9, 1.8, 1.3, 2.4, 4.7, 6.1, 1.6] // L
+            },
+            weekly: {
+                labels: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+                time: [145, 180, 160, 195, 210, 95, 125], // mins saved
+                trips: [6, 8, 7, 8, 9, 4, 5],
+                co2: [12.4, 15.8, 14.1, 17.2, 18.9, 8.2, 10.6],
+                fuel: [5.2, 6.6, 5.9, 7.2, 7.9, 3.4, 4.4]
+            },
+            monthly: {
+                labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                time: [240, 290, 310, 270], // mins saved
+                trips: [10, 12, 13, 11],
+                co2: [20.5, 24.8, 26.1, 23.2],
+                fuel: [8.5, 10.3, 10.9, 9.7]
+            }
+        };
+
+        // Recent Trips Master Data
+        const tripsHistory = [
+            {
+                date: "Today, 08:45 AM",
+                route: "Home (Westside) → Tech Park Hub",
+                time: "16 min",
+                speed: "52 km/h",
+                timeSaved: "12 min saved",
+                fuelSaved: "1.2 L",
+                co2: "2.8 kg",
+                badge: "Traffic Saver 🚦"
+            },
+            {
+                date: "Yesterday, 05:30 PM",
+                route: "Tech Park Hub → Central Plaza",
+                time: "22 min",
+                speed: "45 km/h",
+                timeSaved: "18 min saved",
+                fuelSaved: "1.8 L",
+                co2: "4.2 kg",
+                badge: "Green Commuter ⚡"
+            },
+            {
+                date: "28 Jul, 09:15 AM",
+                route: "Central Plaza → Hospital Bypass Corridor",
+                time: "14 min",
+                speed: "58 km/h",
+                timeSaved: "8 min saved",
+                fuelSaved: "0.9 L",
+                co2: "2.1 kg",
+                badge: "Eco Driver 🌿"
+            },
+            {
+                date: "27 Jul, 06:10 PM",
+                route: "Railway Plaza → Westside Bypass",
+                time: "19 min",
+                speed: "48 km/h",
+                timeSaved: "15 min saved",
+                fuelSaved: "1.5 L",
+                co2: "3.6 kg",
+                badge: "Traffic Saver 🚦"
+            },
+            {
+                date: "26 Jul, 08:30 AM",
+                route: "Home (Westside) → Airport Expressway",
+                time: "25 min",
+                speed: "62 km/h",
+                timeSaved: "22 min saved",
+                fuelSaved: "2.4 L",
+                co2: "5.8 kg",
+                badge: "Green Commuter ⚡"
+            }
+        ];
+
+        // Global Chart Instance
+        let currentChartMode = 'weekly';
+        let currentMetric = 'time';
+        let chartInstance = null;
+
+        // Initialize Chart.js Graph
+        function initChart() {
+            const ctx = document.getElementById('tripsAnalyticsChart').getContext('2d');
+            
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: getChartDataConfig(),
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#161a23',
+                            titleColor: '#38bdf8',
+                            bodyColor: '#fff',
+                            borderColor: 'rgba(255,255,255,0.1)',
+                            borderWidth: 1,
+                            padding: 10
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#9ca3af', font: { family: 'Inter', size: 11 } }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#9ca3af', font: { family: 'JetBrains Mono', size: 11 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Build Config based on active mode & metric
+        function getChartDataConfig() {
+            const dataset = graphDatasets[currentChartMode];
+            const dataValues = dataset[currentMetric];
+
+            let metricLabel = "Time Saved (min)";
+            let borderColor = "#38bdf8";
+            let bgColor = "rgba(56, 189, 248, 0.15)";
+
+            if (currentMetric === "trips") {
+                metricLabel = "Trips Completed";
+                borderColor = "#ffb000";
+                bgColor = "rgba(255, 176, 0, 0.15)";
+            } else if (currentMetric === "co2") {
+                metricLabel = "CO₂ Emission Reduced (kg)";
+                borderColor = "#22c55e";
+                bgColor = "rgba(34, 197, 94, 0.15)";
+            } else if (currentMetric === "fuel") {
+                metricLabel = "Fuel Saved (Liters)";
+                borderColor = "#a855f7";
+                bgColor = "rgba(168, 85, 247, 0.15)";
+            }
+
+            return {
+                labels: dataset.labels,
+                datasets: [{
+                    label: metricLabel,
+                    data: dataValues,
+                    borderColor: borderColor,
+                    backgroundColor: bgColor,
+                    fill: true,
+                    tension: 0.35,
+                    borderWidth: 3,
+                    pointBackgroundColor: borderColor,
+                    pointRadius: 5
+                }]
+            };
+        }
+
+        // Update Chart Output
+        function updateChart() {
+            if (chartInstance) {
+                chartInstance.data = getChartDataConfig();
+                chartInstance.update();
+            }
+        }
+
+        // Render Recent Trips Table
+        function renderTripsTable() {
+            const tbody = document.getElementById('trips-log-body');
+            tbody.innerHTML = '';
+
+            tripsHistory.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="font-family: var(--font-mono); color: var(--text-muted); font-size: 0.775rem;">${item.date}</td>
+                    <td><span class="route-pill"><i class="fa-solid fa-location-arrow text-info"></i> ${item.route}</span></td>
+                    <td style="font-family: var(--font-mono); font-weight: 600;">${item.time}</td>
+                    <td style="font-family: var(--font-mono); color: var(--accent-blue);">${item.speed}</td>
+                    <td><span class="eco-saved-pill">${item.timeSaved}</span></td>
+                    <td style="font-family: var(--font-mono); color: var(--accent-green);">${item.fuelSaved}</td>
+                    <td style="font-family: var(--font-mono); color: var(--accent-green);">${item.co2}</td>
+                    <td><span style="font-size: 0.775rem; font-weight: 700; color: var(--accent-amber);">${item.badge}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Toast Helper
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => { toast.classList.remove('show'); }, 3500);
+        }
+
+        // Setup Event Listeners
+        function setupEventListeners() {
+            // Mandated 3 Graph Tabs Handler (Daily, Weekly, Monthly)
+            document.querySelectorAll('.graph-tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.graph-tab-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentChartMode = btn.dataset.graph;
+                    updateChart();
+                });
+            });
+
+            // Metric Selector Handler
+            document.getElementById('chart-metric-select').addEventListener('change', (e) => {
+                currentMetric = e.target.value;
+                updateChart();
+            });
+
+            // Export Log Button
+            document.getElementById('btn-export-log').addEventListener('click', () => {
+                showToast("Exported complete My Trips log report to CSV/PDF.");
+            });
+        }
+
+        // DOM Loaded Initializer
+        document.addEventListener('DOMContentLoaded', () => {
+            initChart();
+            renderTripsTable();
+            setupEventListeners();
+        });
+    </script>
+</body>
+</html>

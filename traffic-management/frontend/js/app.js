@@ -9,34 +9,32 @@ document.addEventListener("DOMContentLoaded", () => {
     const API_EMERGENCY_HIST_URL = "http://localhost:8080/api/emergency/history";
     const API_EMERGENCY_ACK_URL = "http://localhost:8080/api/emergency/acknowledge";
     const WEBSOCKET_URL = "http://localhost:8080/ws";
-    const CAMERA_STREAM_BASE = "http://localhost:5000/video-feed";
     const PYTHON_HEALTH_URL = "http://localhost:5000/health";
 
     const JUNCTION_COORDS = {
-        "J101": { lat: 23.0225, lng: 72.5714, name: "Junction A - Central Avenue" },
-        "J102": { lat: 23.0300, lng: 72.5800, name: "Junction B - Ring Road" },
-        "J103": { lat: 23.0150, lng: 72.5600, name: "Junction C - Tech Park Crossing" },
-        "J104": { lat: 23.0400, lng: 72.5900, name: "Junction D - Airport Expressway" }
+        "J101": { lat: 23.0225, lng: 72.5714, name: "Junction A - City Center" },
+        "J102": { lat: 23.0300, lng: 72.5800, name: "Junction B - Railway Station" },
+        "J103": { lat: 23.0150, lng: 72.5600, name: "Junction C - Hospital Road" },
+        "J104": { lat: 23.0400, lng: 72.5900, name: "Junction D - Highway Junction" }
     };
 
-    const CURRENT_ROUTE_COORDS = [
-        [23.0225, 72.5714],
+    const PRIMARY_ROUTE_COORDS = [
+        [23.0225, 72.5714], // Junction A (City Center)
         [23.0260, 72.5750],
-        [23.0300, 72.5800]
+        [23.0300, 72.5800]  // Junction B (Railway Station)
     ];
 
     const ALTERNATIVE_ROUTE_COORDS = [
-        [23.0225, 72.5714],
-        [23.0210, 72.5780],
-        [23.0250, 72.5840],
-        [23.0300, 72.5800]
+        [23.0225, 72.5714], // Junction A (City Center)
+        [23.0150, 72.5600], // Junction C (Hospital Road)
+        [23.0400, 72.5900], // Junction D (Highway Junction)
+        [23.0300, 72.5800]  // Destination
     ];
 
     const EMERGENCY_CORRIDOR_COORDS = [
-        [23.0225, 72.5714],
-        [23.0280, 72.5720],
-        [23.0350, 72.5730],
-        [23.0400, 72.5900]
+        [23.0225, 72.5714], // Junction A
+        [23.0300, 72.5800], // Junction B
+        [23.0400, 72.5900]  // Junction D
     ];
 
     let map = null;
@@ -45,7 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let alternativeRoutePolyline = null;
     let emergencyCorridorPolyline = null;
     let selectedJunctionId = "J101";
-    let selectedCameraName = "Camera 01 - Junction A";
+    let selectedCameraName = "Camera 01 - Junction A (City Center)";
 
     let stompClient = null;
     let pollInterval = null;
@@ -68,6 +66,7 @@ document.addEventListener("DOMContentLoaded", () => {
         "LOW": "#22c55e",
         "MEDIUM": "#eab308",
         "HIGH": "#f97316",
+        "CRITICAL": "#ef4444",
         "SEVERE": "#ef4444"
     };
 
@@ -83,8 +82,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (camOverlay) camOverlay.classList.add("d-none");
         if (camOffline) camOffline.classList.add("d-none");
         if (camBadge) {
-            camBadge.className = "cam-badge-online";
-            camBadge.innerHTML = '<i class="fa-solid fa-circle fs-6"></i> ONLINE';
+            camBadge.className = "cam-status-live badge bg-success";
+            camBadge.innerHTML = '<i class="fa-solid fa-circle me-1 fs-6"></i> LIVE SIMULATION';
         }
         setStatus("status-camera", "ONLINE");
         setStreamStatus("ONLINE");
@@ -94,27 +93,22 @@ document.addEventListener("DOMContentLoaded", () => {
     window.switchTab = function(event, tabId) {
         if (event) event.preventDefault();
 
-        // 1. Remove active class from all nav links
         document.querySelectorAll(".sidebar-nav .nav-link").forEach(link => {
             link.classList.remove("active");
         });
 
-        // 2. Add active class to clicked link
         if (event && event.currentTarget) {
             event.currentTarget.classList.add("active");
         }
 
-        // 3. Hide all tabs
         document.querySelectorAll(".tab-pane").forEach(pane => {
             pane.classList.remove("active-tab");
         });
 
-        // 4. Show target tabs
         document.querySelectorAll(`.tab-pane[data-tab="${tabId}"]`).forEach(pane => {
             pane.classList.add("active-tab");
         });
 
-        // 5. Force resize on charts and map to prevent layout bugs
         setTimeout(() => {
             if (map) map.invalidateSize();
             resizeAllCharts();
@@ -123,27 +117,37 @@ document.addEventListener("DOMContentLoaded", () => {
         addOpsTimeline(`Navigated to ${tabId.toUpperCase()} view`);
     };
 
-    // Global Camera Switch Function
-    window.switchCamera = function(jId, camName) {
+    // Global Camera / Junction Switch Function
+    window.switchCamera = function(jId, camName = null) {
         if (!JUNCTION_COORDS[jId]) return;
         selectedJunctionId = jId;
-        selectedCameraName = camName;
+
+        const defaultCamNames = {
+            "J101": "Camera 01 - Junction A (City Center)",
+            "J102": "Camera 02 - Junction B (Railway Station)",
+            "J103": "Camera 03 - Junction C (Hospital Road)",
+            "J104": "Camera 04 - Junction D (Highway)"
+        };
+
+        const resolvedCamName = camName || defaultCamNames[jId] || `Camera (${jId})`;
+        selectedCameraName = resolvedCamName;
 
         document.querySelectorAll(".cam-manage-card").forEach(card => card.classList.remove("active"));
         document.querySelectorAll(`[id="cam-card-${jId}"]`).forEach(card => card.classList.add("active"));
 
-        const camImg = document.getElementById("cam-stream");
-        const loadingOverlay = document.getElementById("cam-loading-overlay");
-        if (loadingOverlay) loadingOverlay.classList.remove("d-none");
-        if (camImg) {
-            camImg.src = `${CAMERA_STREAM_BASE}/${jId}?t=${new Date().getTime()}`;
-            setTimeout(hideCamLoading, 500);
+        // Synchronize all dropdown selectors across tabs
+        document.querySelectorAll(".junction-select-dropdown").forEach(dropdown => {
+            dropdown.value = jId;
+        });
+
+        if (window.TrafficSimulation) {
+            window.TrafficSimulation.setSelectedJunction(jId);
         }
 
         const jInfo = JUNCTION_COORDS[jId];
-        setElemText("selected-cam-name", camName);
-        setElemText("map-panel-jname", `${camName} (${jInfo.name})`);
-        setElemText("map-panel-jid", `Stream: /video-feed/${jId}`);
+        setElemText("selected-cam-name", resolvedCamName);
+        setElemText("map-panel-jname", `${resolvedCamName} (${jInfo.name})`);
+        setElemText("map-panel-jid", `Stream: Canvas Simulation (${jId})`);
         setElemText("stream-info-cam", `CAM: ${jId}`);
 
         if (map) {
@@ -151,11 +155,40 @@ document.addEventListener("DOMContentLoaded", () => {
             if (mapMarkers[jId]) mapMarkers[jId].openPopup();
         }
 
-        addOpsTimeline(`Switched camera stream to ${camName}`);
-        addAlert(`Switched video feed to ${camName}`, "info");
+        // Trigger immediate UI telemetry refresh for newly selected junction
+        if (window.TrafficSimulation) {
+            const jState = window.TrafficSimulation.getJunctionState(jId);
+            if (jState && typeof updateDashboardUI === "function") {
+                updateDashboardUI({
+                    junctionId: jState.id,
+                    totalVehicles: jState.vehicles.length,
+                    totalVehiclesPassed: jState.totalVehiclesPassed,
+                    cars: jState.carsCount,
+                    motorcycles: jState.bikesCount,
+                    buses: jState.busesCount,
+                    trucks: jState.trucksCount,
+                    amb: jState.ambCount,
+                    density: jState.density,
+                    greenTime: jState.greenTimeNS,
+                    redTime: jState.redTimeNS,
+                    timer: Math.max(0, Math.round(jState.timer)),
+                    signalState: jState.signalState,
+                    mode: jState.mode,
+                    recommendation: jState.recommendation,
+                    reason: jState.reason,
+                    confidence: jState.confidence,
+                    queueLength: jState.queueLength,
+                    avgWaitTime: jState.avgWaitTime,
+                    avgSpeed: jState.avgSpeedKmH
+                });
+            }
+        }
+
+        addOpsTimeline(`Switched simulation focus to ${resolvedCamName}`);
+        addAlert(`Switched tactical view to ${resolvedCamName}`, "info");
     };
 
-    // Search Suggestions and Quick Navigation Handler
+    // Search Suggestions Handler
     const searchInput = document.getElementById("navbar-search-input");
     const searchDropdown = document.getElementById("search-suggestions-dropdown");
 
@@ -222,10 +255,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 2. Startup Animation Sequence
     const startupSteps = [
-        "Loading Assets...",
-        "Connecting Backend...",
-        "Connecting AI Engine...",
-        "Initializing Executive Command Center...",
+        "Initializing 2D Canvas Engine...",
+        "Loading City Junction Topology...",
+        "Connecting AI Signal Controller...",
+        "Initializing Chief Traffic Command Panel...",
         "System Ready"
     ];
     let stepIdx = 0;
@@ -243,12 +276,302 @@ document.addEventListener("DOMContentLoaded", () => {
                 setTimeout(() => { loadingScreen.style.display = "none"; }, 500);
             }
             if (map) map.invalidateSize();
-            addOpsTimeline("System Initialized: Smart City Command Center Active");
-            addAlert("System Online: Executive Command Center Ready", "info");
-        }
-    }, 300);
+            addOpsTimeline("System Initialized: Smart City Intelligent Control Center Active");
+            addAlert("System Online: Tactical Command Center Ready", "info");
 
-    // 3. Presentation Mode ("Judge Mode") & Sidebar Handlers
+            // Initialize In-Browser Canvas Traffic Simulation Engine
+            if (window.TrafficSimulation) {
+                window.TrafficSimulation.initEngine("sim-canvas");
+                hideCamLoading();
+            }
+        }
+    }, 250);
+
+    // Chief Traffic Controller Panel Listeners
+    const greenSlider = document.getElementById("input-green-slider");
+    const redSlider = document.getElementById("input-red-slider");
+    const valGreenSlider = document.getElementById("val-green-slider");
+    const valRedSlider = document.getElementById("val-red-slider");
+    const btnApplyManual = document.getElementById("btn-apply-manual");
+    const btnApproveAI = document.getElementById("btn-approve-ai");
+    const btnRejectAI = document.getElementById("btn-reject-ai");
+    const btnTriggerAmb = document.getElementById("btn-trigger-ambulance");
+
+    const btnIncGreen = document.getElementById("btn-inc-green");
+    const btnDecGreen = document.getElementById("btn-dec-green");
+    const btnForceRed = document.getElementById("btn-force-red");
+    const btnForceGreen = document.getElementById("btn-force-green");
+    const btnPauseJ = document.getElementById("btn-pause-j");
+    const btnResumeJ = document.getElementById("btn-resume-j");
+    const btnRestartJ = document.getElementById("btn-restart-j");
+
+    if (greenSlider && valGreenSlider) {
+        greenSlider.addEventListener("input", (e) => {
+            valGreenSlider.textContent = `${e.target.value}s`;
+        });
+    }
+    if (redSlider && valRedSlider) {
+        redSlider.addEventListener("input", (e) => {
+            valRedSlider.textContent = `${e.target.value}s`;
+        });
+    }
+    if (btnApplyManual) {
+        btnApplyManual.addEventListener("click", () => {
+            const gVal = greenSlider ? greenSlider.value : 35;
+            const rVal = redSlider ? redSlider.value : 35;
+            if (window.TrafficSimulation) {
+                window.TrafficSimulation.setManualSignalTiming(selectedJunctionId, gVal, rVal);
+            }
+            addAlert(`Manual signal timing applied to ${selectedJunctionId}: Green ${gVal}s, Red ${rVal}s`, "warning");
+            addOpsTimeline(`Manual Signal Override applied to ${selectedJunctionId}`);
+        });
+    }
+    if (btnApproveAI) {
+        btnApproveAI.addEventListener("click", () => {
+            if (window.TrafficSimulation) window.TrafficSimulation.approveAI(selectedJunctionId);
+            addAlert(`AI Signal Timing Approved for ${selectedJunctionId}`, "success");
+            addOpsTimeline(`Chief Controller Approved AI Recommendation for ${selectedJunctionId}`);
+        });
+    }
+    if (btnRejectAI) {
+        btnRejectAI.addEventListener("click", () => {
+            if (window.TrafficSimulation) window.TrafficSimulation.rejectAI(selectedJunctionId);
+            addAlert(`AI Recommendation Rejected for ${selectedJunctionId}`, "danger");
+            addOpsTimeline(`Chief Controller Rejected AI Recommendation for ${selectedJunctionId}`);
+        });
+    }
+    if (btnIncGreen) {
+        btnIncGreen.addEventListener("click", () => {
+            if (window.TrafficSimulation) window.TrafficSimulation.increaseGreen(selectedJunctionId, 10);
+            addAlert(`Increased Green Light Time (+10s) for ${selectedJunctionId}`, "success");
+        });
+    }
+    if (btnDecGreen) {
+        btnDecGreen.addEventListener("click", () => {
+            if (window.TrafficSimulation) window.TrafficSimulation.decreaseGreen(selectedJunctionId, 10);
+            addAlert(`Decreased Green Light Time (-10s) for ${selectedJunctionId}`, "warning");
+        });
+    }
+    if (btnForceRed) {
+        btnForceRed.addEventListener("click", () => {
+            if (window.TrafficSimulation) window.TrafficSimulation.forceRed(selectedJunctionId);
+            addAlert(`FORCED RED SIGNAL for ${selectedJunctionId}`, "danger");
+            addOpsTimeline(`Forced RED Signal applied to ${selectedJunctionId}`);
+        });
+    }
+    if (btnForceGreen) {
+        btnForceGreen.addEventListener("click", () => {
+            if (window.TrafficSimulation) window.TrafficSimulation.forceGreen(selectedJunctionId);
+            addAlert(`FORCED GREEN SIGNAL for ${selectedJunctionId}`, "success");
+            addOpsTimeline(`Forced GREEN Signal applied to ${selectedJunctionId}`);
+        });
+    }
+    if (btnPauseJ) {
+        btnPauseJ.addEventListener("click", () => {
+            if (window.TrafficSimulation) window.TrafficSimulation.pauseJunction(selectedJunctionId);
+            addAlert(`PAUSED Simulation for ${selectedJunctionId}`, "warning");
+        });
+    }
+    if (btnResumeJ) {
+        btnResumeJ.addEventListener("click", () => {
+            if (window.TrafficSimulation) window.TrafficSimulation.resumeJunction(selectedJunctionId);
+            addAlert(`RESUMED Simulation for ${selectedJunctionId}`, "info");
+        });
+    }
+    if (btnRestartJ) {
+        btnRestartJ.addEventListener("click", () => {
+            if (window.TrafficSimulation) window.TrafficSimulation.restartJunction(selectedJunctionId);
+            addAlert(`RESTARTED Junction Simulation for ${selectedJunctionId}`, "info");
+            addOpsTimeline(`Restarted junction state for ${selectedJunctionId}`);
+        });
+    }
+    if (btnTriggerAmb) {
+        btnTriggerAmb.addEventListener("click", () => {
+            if (window.TrafficSimulation) window.TrafficSimulation.triggerEmergency(selectedJunctionId);
+            addAlert(`GREEN WAVE EMERGENCY CORRIDOR ACTIVATED (A -> B -> D)!`, "danger");
+            addOpsTimeline(`Emergency Green Wave Corridor Activated`);
+        });
+    }
+
+    // Real-Time Telemetry Synchronization Loop (500ms)
+    setInterval(() => {
+        if (!window.TrafficSimulation) return;
+        const allJunctions = window.TrafficSimulation.getAllJunctions();
+        const activeJunction = window.TrafficSimulation.getJunctionState(selectedJunctionId);
+        const emg = window.TrafficSimulation.getEmergencyTelemetry();
+
+        if (activeJunction) {
+            updateDashboardUI({
+                junctionId: activeJunction.id,
+                totalVehicles: activeJunction.currentCount,
+                totalVehiclesPassed: activeJunction.totalVehiclesPassed,
+                cars: activeJunction.carsCount,
+                motorcycles: activeJunction.bikesCount,
+                buses: activeJunction.busesCount,
+                trucks: activeJunction.trucksCount,
+                amb: activeJunction.ambCount,
+                density: activeJunction.density,
+                greenTime: activeJunction.greenTimeNS,
+                redTime: activeJunction.redTimeNS,
+                timer: activeJunction.timer,
+                signalState: activeJunction.signalState,
+                mode: activeJunction.mode,
+                recommendation: activeJunction.recommendation,
+                reason: activeJunction.reason,
+                confidence: activeJunction.confidence,
+                queueLength: activeJunction.queueLength,
+                avgWaitTime: activeJunction.avgWaitTime,
+                avgSpeed: activeJunction.avgSpeedKmH
+            });
+        }
+
+        // Global Network KPI Aggregator across all 4 live simulation nodes
+        let totalNetVehicles = 0;
+        let totalNetQueue = 0;
+        let totalNetPassed = 0;
+        let highCongestionCount = 0;
+        let avgConfidenceSum = 0;
+        let junctionCount = 0;
+
+        for (const jId in allJunctions) {
+            const j = allJunctions[jId];
+            totalNetVehicles += j.currentCount || 0;
+            totalNetQueue += j.queueLength || 0;
+            totalNetPassed += j.totalVehiclesPassed || 0;
+            if (j.density === "HIGH" || j.density === "CRITICAL" || j.density === "SEVERE") {
+                highCongestionCount++;
+            }
+            avgConfidenceSum += (j.confidence || 98);
+            junctionCount++;
+        }
+
+        // Smooth, stable KPI calculations
+        const avgNetWait = Math.max(14, Math.min(48, Math.round(18 + (totalNetQueue * 1.8) + (totalNetVehicles * 0.4))));
+        const co2SavedPct = Math.max(18, Math.min(42, Math.round(26 + (totalNetPassed % 10) * 0.5)));
+        const networkAvgConfidence = junctionCount > 0 ? (avgConfidenceSum / junctionCount).toFixed(1) : "98.2";
+        const deadlocksCount = window.TrafficSimulation.getDeadlockEventsCount ? window.TrafficSimulation.getDeadlockEventsCount() : 0;
+
+        const netAvgSpeed = Math.max(22, Math.min(45, Math.round(38 - (totalNetVehicles * 0.35))));
+        // Flow Throughput is vehicles processed per minute across 4 junctions (rate between 34 - 64 veh/min)
+        const flowThroughput = Math.max(32, Math.min(68, Math.round(34 + (totalNetVehicles * 0.8))));
+        // AI Interventions count increments cleanly and remains stable
+        const interventionsCount = Math.max(6, 12 + deadlocksCount + Math.floor(totalNetPassed / 12) + (emg && emg.active ? 3 : 0));
+
+        // Update Top Global KPI Grid Dynamically
+        setElemText("kpi-connected-cams", "4 / 4");
+        setElemText("kpi-interventions", `${interventionsCount} Actions`);
+        setElemText("kpi-network-speed", `${netAvgSpeed} km/h`);
+        setElemText("kpi-emg-count", `${emg && emg.active ? '1 Active' : '0 Active'}`);
+        setElemText("kpi-avg-wait", `${avgNetWait}s`);
+        setElemText("kpi-co2-saved", `${co2SavedPct}%`);
+        setElemText("kpi-throughput", `${flowThroughput} veh/min`);
+        setElemText("kpi-ai-acc", `${networkAvgConfidence}%`);
+
+        // Update GIS Map Markers according to live density across all 4 junctions
+        for (const jId in allJunctions) {
+            const jState = allJunctions[jId];
+            if (mapMarkers[jId]) {
+                const color = DENSITY_COLORS[jState.density] || "#22c55e";
+                mapMarkers[jId].setStyle({ fillColor: color, color: "#ffffff" });
+            }
+        }
+
+        // Sync Emergency AI Telemetry Dynamically
+        if (emg && emg.active) {
+            setElemText("emg-amb-id", emg.ambId);
+            setElemText("emg-veh-type", `Ambulance (${emg.ambId}) Active`);
+            setElemText("emg-junction", emg.currentJunction);
+            setElemText("emg-next-j", emg.nextJunction);
+            setElemText("emg-dest", emg.destination);
+            setElemText("emg-route", emg.route);
+            setElemText("emg-speed", `${emg.speedKmH} km/h`);
+            setElemText("emg-dist", `${emg.distanceMeters} m`);
+            setElemText("emg-eta", `${emg.etaSeconds} sec`);
+            setElemText("emg-gw-status", emg.greenWaveStatus);
+            setElemText("emg-clearance", `${emg.laneClearancePercent}%`);
+            setElemText("emg-time-saved", `${emg.timeSavedMin} min`);
+
+            if (emergencyCorridorPolyline) {
+                emergencyCorridorPolyline.setStyle({
+                    opacity: 0.95,
+                    weight: 8,
+                    color: "#00f2fe"
+                });
+            }
+        } else {
+            setElemText("emg-amb-id", "AMB-STANDBY");
+            setElemText("emg-veh-type", "No Emergency Priority Request Active");
+            setElemText("emg-junction", "Network Monitoring Active");
+            setElemText("emg-next-j", "All Corridors Clear");
+            setElemText("emg-dest", "General Hospital / Emergency Hub");
+            setElemText("emg-route", "Ready for Dynamic Green Wave Dispatch");
+            setElemText("emg-speed", "0 km/h");
+            setElemText("emg-dist", "0 m");
+            setElemText("emg-eta", "0 sec");
+            setElemText("emg-gw-status", "STANDBY");
+            setElemText("emg-clearance", "100% Ready");
+            setElemText("emg-time-saved", "0.0 min");
+
+            if (emergencyCorridorPolyline) {
+                emergencyCorridorPolyline.setStyle({
+                    opacity: 0.2,
+                    weight: 4,
+                    color: "#475569"
+                });
+            }
+        }
+
+        // Update Analytics Hub Deep Charts
+        updateAnalyticsCharts(totalNetPassed, co2SavedPct, networkAvgConfidence);
+
+        // Inter-Junction Alternate Route Engine Evaluation
+        evaluateInterJunctionRerouting(allJunctions);
+    }, 500);
+
+    // Inter-Junction Rerouting Engine
+    function evaluateInterJunctionRerouting(allJunctions) {
+        const jA = allJunctions["J101"];
+        const jB = allJunctions["J102"];
+        const jC = allJunctions["J103"];
+        const jD = allJunctions["J104"];
+
+        if (!jA || !jB) return;
+
+        // Dynamic bypass evaluation based on real queue lengths of J102 vs J103
+        const bIsCongested = (jB.density === "HIGH" || jB.density === "CRITICAL" || jB.density === "SEVERE" || jB.queueLength >= 4);
+
+        if (bIsCongested) {
+            const timeSaved = Math.round(jB.queueLength * 1.8 + 4);
+            const waitReduction = Math.round(Math.min(75, 35 + jB.queueLength * 4));
+            const co2Reduction = Math.round(Math.min(45, 18 + jB.queueLength * 2.2));
+
+            updateRouteRecommendationUI({
+                trafficDensity: jB.density,
+                currentRoute: `Route A (Via ${jB.name})`,
+                recommendedRoute: `Route B (Via ${jC ? jC.name : 'J103'} ➔ ${jD ? jD.name : 'J104'})`,
+                estimatedTimeSaved: `${timeSaved} min`,
+                estimatedWaitingReduction: `${waitReduction}%`,
+                estimatedCo2Reduction: `${co2Reduction}%`,
+                reason: `Congestion detected at ${jB.id} (${jB.currentCount} vehicles, queue ${jB.queueLength}). Dynamic AI bypass routed via J103 & J104.`,
+                priority: "STRONGLY RECOMMENDED",
+                required: true
+            });
+        } else {
+            updateRouteRecommendationUI({
+                trafficDensity: jB.density,
+                currentRoute: `Route A (Via ${jB.name})`,
+                recommendedRoute: "Route A (Direct Corridor - No Bypass Required)",
+                estimatedTimeSaved: "0 min",
+                estimatedWaitingReduction: "0%",
+                estimatedCo2Reduction: "0%",
+                reason: `Traffic flow across ${jB.id} operating within optimal smooth limits.`,
+                priority: "NORMAL",
+                required: false
+            });
+        }
+    }
+
+    // Presentation Mode & Sidebar Handlers
     const btnPresentation = document.getElementById("btn-presentation-mode");
     if (btnPresentation) {
         btnPresentation.addEventListener("click", () => {
@@ -258,7 +581,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (isPres) {
                 btnPresentation.innerHTML = '<i class="fa-solid fa-compress me-1"></i> Exit Presentation Mode';
                 btnPresentation.className = "btn btn-outline-warning btn-sm fw-bold";
-                addAlert("Presentation Mode Enabled for Hackathon Judges", "warning");
+                addAlert("Presentation Mode Enabled", "warning");
                 addOpsTimeline("Presentation Mode Enabled");
             } else {
                 btnPresentation.innerHTML = '<i class="fa-solid fa-tv me-1"></i> Presentation Mode';
@@ -292,18 +615,18 @@ document.addEventListener("DOMContentLoaded", () => {
         if (predictionLineChart) predictionLineChart.resize();
     }
 
-    // 4. Report Center CSV & PDF Export Handlers
+    // Report CSV & PDF Export Handlers
     const btnExportCsv = document.getElementById("btn-export-csv");
     if (btnExportCsv) {
         btnExportCsv.addEventListener("click", () => {
-            const csvContent = "data:text/csv;charset=utf-8," 
-                + "Timestamp,Junction,Total_Vehicles,Density,Green_Time,CO2_Reduction,AI_Confidence\n"
-                + `${new Date().toISOString()},Junction A - Central Ave,18,MEDIUM,35s,28%,96.4%\n`
-                + `${new Date().toISOString()},Junction B - Ring Road,12,LOW,30s,32%,98.2%\n`
-                + `${new Date().toISOString()},Junction C - Tech Park,24,HIGH,50s,22%,94.5%\n`
-                + `${new Date().toISOString()},Junction D - Airport Expy,8,LOW,35s,35%,99.0%\n`;
+            const allJ = window.TrafficSimulation ? window.TrafficSimulation.getAllJunctions() : {};
+            let csvLines = "Timestamp,Junction_ID,Junction_Name,Vehicles_Active,Vehicles_Passed,Queue_Length,Density,Signal_State,Green_Time_s\n";
+            for (const id in allJ) {
+                const j = allJ[id];
+                csvLines += `${new Date().toISOString()},${j.id},"${j.name}",${j.currentCount},${j.totalVehiclesPassed},${j.queueLength},${j.density},${j.signalState},${j.greenTimeNS}\n`;
+            }
 
-            const encodedUri = encodeURI(csvContent);
+            const encodedUri = encodeURI("data:text/csv;charset=utf-8," + csvLines);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
             link.setAttribute("download", `SmartCity_Traffic_Report_${new Date().toISOString().slice(0, 10)}.csv`);
@@ -311,7 +634,7 @@ document.addEventListener("DOMContentLoaded", () => {
             link.click();
             document.body.removeChild(link);
 
-            addAlert("Municipal Traffic CSV Report Exported Successfully", "info");
+            addAlert("Municipal Traffic CSV Report Exported", "info");
             addOpsTimeline("CSV Report Exported");
         });
     }
@@ -325,7 +648,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // 5. Operations Activity Timeline Feed
     function addOpsTimeline(activity) {
         const container = document.getElementById("ops-timeline-feed");
         if (!container) return;
@@ -344,7 +666,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // 6. Notification Center Feed
     function addAlert(message, type = "info") {
         const container = document.getElementById("alerts-feed-list");
         if (!container) return;
@@ -368,26 +689,11 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // 7. Status Pill Helper
     function setStatus(elemId, status) {
         const elem = document.getElementById(elemId);
         if (elem) {
             elem.className = `status-pill pill-${status.toLowerCase()}`;
             elem.textContent = status;
-        }
-
-        const dlgElemMap = {
-            "status-backend": "dlg-status-backend",
-            "status-ai": "dlg-status-ai",
-            "status-db": "dlg-status-db",
-            "status-camera": "dlg-status-camera"
-        };
-        if (dlgElemMap[elemId]) {
-            const dlgElem = document.getElementById(dlgElemMap[elemId]);
-            if (dlgElem) {
-                dlgElem.className = `status-pill pill-${status.toLowerCase()}`;
-                dlgElem.textContent = status;
-            }
         }
     }
 
@@ -399,7 +705,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // 8. Initialize Smart GIS Map
+    // Initialize GIS Map with 4 Junction Markers
     function initMap() {
         const mapContainer = document.getElementById("map");
         if (!mapContainer) return;
@@ -414,20 +720,20 @@ document.addEventListener("DOMContentLoaded", () => {
         for (const [jId, info] of Object.entries(JUNCTION_COORDS)) {
             const isEmgJunction = (jId === "J101");
             const m = L.circleMarker([info.lat, info.lng], {
-                radius: isEmgJunction ? 16 : 14,
-                fillColor: isEmgJunction ? "#00f2fe" : "#22c55e",
+                radius: 15,
+                fillColor: "#22c55e",
                 color: "#ffffff",
                 weight: 3,
                 opacity: 1,
                 fillOpacity: 0.9
             }).addTo(map);
 
-            m.bindPopup(`<strong>${info.name}</strong><br>${isEmgJunction ? '<span class="text-info fw-bold">Emergency Vehicle Junction</span>' : 'Stream: /video-feed/' + jId}`);
-            m.on("click", () => switchCamera(jId, `Camera for ${info.name}`));
+            m.bindPopup(`<strong>${info.name}</strong><br><span class="text-warning">Click marker to switch simulation</span>`);
+            m.on("click", () => switchCamera(jId, info.name));
             mapMarkers[jId] = m;
         }
 
-        currentRoutePolyline = L.polyline(CURRENT_ROUTE_COORDS, {
+        currentRoutePolyline = L.polyline(PRIMARY_ROUTE_COORDS, {
             color: '#ef4444',
             weight: 4,
             opacity: 0.7,
@@ -437,15 +743,14 @@ document.addEventListener("DOMContentLoaded", () => {
         alternativeRoutePolyline = L.polyline(ALTERNATIVE_ROUTE_COORDS, {
             color: '#22c55e',
             weight: 5,
-            opacity: 0.8
+            opacity: 0.85
         }).addTo(map);
 
         emergencyCorridorPolyline = L.polyline(EMERGENCY_CORRIDOR_COORDS, {
             color: '#00f2fe',
-            weight: 7,
-            opacity: 0.95
+            weight: 6,
+            opacity: 0.9
         }).addTo(map);
-        emergencyCorridorPolyline.bindPopup("<strong>AI Recommended Green Corridor</strong> (Emergency Ambulance Route)");
 
         const btnLocate = document.getElementById("btn-map-locate");
         const btnFullscreen = document.getElementById("btn-map-fullscreen");
@@ -464,8 +769,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         if (btnRefresh) {
             btnRefresh.addEventListener("click", () => {
-                pollTrafficData();
-                addAlert("Multi-camera map telemetry refreshed.", "info");
+                addAlert("GIS Map telemetry refreshed.", "info");
             });
         }
 
@@ -474,7 +778,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 300);
     }
 
-    // 9. Initialize Chart.js Analytics
+    // Chart.js Setup
     function initCharts() {
         const doughnutCtx = document.getElementById("doughnutChart");
         if (doughnutCtx) {
@@ -484,7 +788,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     labels: ["Cars", "Bikes", "Buses", "Trucks"],
                     datasets: [{
                         data: [0, 0, 0, 0],
-                        backgroundColor: ["#FFB000", "#6FCF7A", "#38bdf8", "#E8544A"],
+                        backgroundColor: ["#3b82f6", "#ef4444", "#eab308", "#22c55e"],
                         borderWidth: 0
                     }]
                 },
@@ -505,7 +809,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 data: {
                     labels: [],
                     datasets: [{
-                        label: "Vehicles",
+                        label: "Active Vehicles",
                         data: [],
                         borderColor: "#FFB000",
                         backgroundColor: "rgba(255, 176, 0, 0.15)",
@@ -533,16 +837,16 @@ document.addEventListener("DOMContentLoaded", () => {
                     labels: ["Now", "2 Min", "5 Min", "10 Min"],
                     datasets: [
                         {
-                            label: "Actual Vehicles",
-                            data: [14, 14, 15, 15],
+                            label: "Actual Count",
+                            data: [12, 14, 15, 15],
                             borderColor: "#6FCF7A",
                             backgroundColor: "rgba(111, 207, 122, 0.15)",
                             fill: true,
                             tension: 0.4
                         },
                         {
-                            label: "Predicted Trend",
-                            data: [14, 16, 21, 26],
+                            label: "AI Prediction Trend",
+                            data: [12, 16, 22, 28],
                             borderColor: "#FFB000",
                             borderDash: [5, 5],
                             fill: false,
@@ -569,7 +873,7 @@ document.addEventListener("DOMContentLoaded", () => {
             barDensityChart = new Chart(barCtx.getContext("2d"), {
                 type: "bar",
                 data: {
-                    labels: ["Low", "Med", "High", "Sev"],
+                    labels: ["Low", "Med", "High", "Crit"],
                     datasets: [{
                         label: "Events",
                         data: [1, 0, 0, 0],
@@ -597,7 +901,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     labels: ["Green", "Red"],
                     datasets: [{
                         label: "Seconds",
-                        data: [35, 35],
+                        data: [40, 30],
                         backgroundColor: ["#6FCF7A", "#E8544A"],
                         borderRadius: 4
                     }]
@@ -616,7 +920,22 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // 9b. Initialize Deep Historical Analytics Charts
+    function updateAnalyticsCharts(totalPassed, co2SavedPct, confidence) {
+        if (analyticsVolumeChart) {
+            const todayIndex = (new Date().getDay() + 6) % 7;
+            analyticsVolumeChart.data.datasets[0].data[todayIndex] = 14200 + (totalPassed * 3);
+            analyticsVolumeChart.update('none');
+        }
+        if (analyticsCo2Chart) {
+            analyticsCo2Chart.data.datasets[0].data[3] = Math.round(720 + co2SavedPct * 4);
+            analyticsCo2Chart.update('none');
+        }
+        if (analyticsAccuracyChart) {
+            analyticsAccuracyChart.data.datasets[0].data[5] = Number(confidence);
+            analyticsAccuracyChart.update('none');
+        }
+    }
+
     function initAnalyticsCharts() {
         const volCtx = document.getElementById("analyticsVolumeChart");
         if (volCtx) {
@@ -632,22 +951,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     }]
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: "#A89C8D", font: { family: "'JetBrains Mono', monospace", size: 10 } }, grid: { display: false } }, y: { ticks: { color: "#A89C8D", font: { family: "'JetBrains Mono', monospace", size: 10 } }, grid: { color: "rgba(255, 176, 0, 0.08)" } } } }
-            });
-        }
-
-        const distCtx = document.getElementById("analyticsDistChart");
-        if (distCtx) {
-            analyticsDistChart = new Chart(distCtx.getContext("2d"), {
-                type: "doughnut",
-                data: {
-                    labels: ["Sedans", "Motorcycles", "Heavy Duty", "Buses"],
-                    datasets: [{
-                        data: [45, 30, 15, 10],
-                        backgroundColor: ["#FFB000", "#6FCF7A", "#E8544A", "#38bdf8"],
-                        borderWidth: 0
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "right", labels: { color: "#A89C8D", font: { family: "'JetBrains Mono', monospace", size: 10 } } } } }
             });
         }
 
@@ -677,8 +980,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 data: {
                     labels: ["12 AM", "4 AM", "8 AM", "12 PM", "4 PM", "8 PM"],
                     datasets: [{
-                        label: "YOLOv8 Confidence %",
-                        data: [98.2, 98.5, 95.4, 96.1, 95.8, 97.2],
+                        label: "AI Confidence %",
+                        data: [98.2, 98.5, 96.4, 97.1, 96.8, 98.2],
                         borderColor: "#FFB000",
                         backgroundColor: "rgba(255, 176, 0, 0.1)",
                         fill: true,
@@ -690,64 +993,76 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    window.resizeAllCharts = function() {
-        const charts = [
-            doughnutChart, lineTrendChart, barDensityChart, horizontalBarChart, predictionLineChart,
-            analyticsVolumeChart, analyticsDistChart, analyticsCo2Chart, analyticsAccuracyChart
-        ];
-        charts.forEach(chart => {
-            if (chart) chart.resize();
-        });
-    };
-
-    // 10. Update Dashboard Telemetry & KPI Cards
+    // Update Dashboard UI elements from active junction state
     function updateDashboardUI(data) {
         if (!data) return;
 
         const totalVehicles = data.totalVehicles ?? 0;
+        const totalPassed = data.totalVehiclesPassed ?? 0;
         const cars = data.cars ?? 0;
         const motorcycles = data.motorcycles ?? 0;
         const buses = data.buses ?? 0;
         const trucks = data.trucks ?? 0;
+        const amb = data.amb ?? 0;
         const density = (data.density || "LOW").toUpperCase();
-        const greenTime = data.greenTime ?? 35;
-        const redTime = data.redTime ?? 35;
+        const greenTime = data.greenTime ?? 40;
+        const redTime = data.redTime ?? 30;
+        const timer = Math.ceil(data.timer ?? 40);
+        const signalState = data.signalState || "NS_GREEN";
+        const mode = data.mode || "AI_AUTO";
+        const recommendation = data.recommendation || "Standard AI Traffic Cycle";
+        const reason = data.reason || "Optimal flow across all approaches.";
+        const confidence = data.confidence || 98;
+        const queueLength = data.queueLength || 0;
+        const avgWait = data.avgWaitTime || 0;
 
         setElemText("map-panel-vehicles", totalVehicles);
         setElemText("stream-info-vehicles", totalVehicles);
-        setElemText("stream-info-signal", `Green: ${greenTime}s | Red: ${redTime}s`);
+        setElemText("stream-info-signal", `Green: ${greenTime}s | Red: ${redTime}s | Countdown: ${timer}s`);
+
+        setElemText("rec-decision", recommendation);
+        setElemText("rec-reason", `Reason: ${reason}`);
+        setElemText("rec-confidence-val", `${confidence}%`);
+
+        // Autonomous AI Brain Decision Panel update
+        setElemText("ai-dec-curr-veh", totalVehicles);
+        setElemText("ai-dec-queue", `${queueLength} Vehicles`);
+        setElemText("ai-dec-wait", `${avgWait} Sec`);
+        setElemText("ai-dec-density", density);
+        setElemText("ai-dec-curr-signal", signalState.replace("_", " "));
+        setElemText("ai-dec-remaining-time", `${timer} Sec`);
+        setElemText("ai-dec-next-signal", signalState.includes("NS") ? `EW GREEN (${redTime}s)` : `NS GREEN (${greenTime}s)`);
+        setElemText("ai-dec-conf", `${confidence}%`);
+        setElemText("ai-dec-reason", reason);
+        setElemText("ai-dec-type-dist", `Cars: ${cars} | Bikes: ${motorcycles} | Buses: ${buses} | Trucks: ${trucks} | Amb: ${amb}`);
 
         const levelElem = document.getElementById("map-panel-level");
         if (levelElem) {
-            levelElem.className = `status-pill pill-${density === 'SEVERE' ? 'offline' : (density === 'HIGH' ? 'connecting' : 'online')}`;
+            levelElem.className = `status-pill pill-${(density === 'CRITICAL' || density === 'SEVERE') ? 'offline' : (density === 'HIGH' ? 'connecting' : 'online')}`;
             levelElem.textContent = density;
         }
 
         const streamDensityElem = document.getElementById("stream-info-density");
         if (streamDensityElem) {
-            streamDensityElem.className = `status-pill pill-${density === 'SEVERE' ? 'offline' : (density === 'HIGH' ? 'connecting' : 'online')}`;
+            streamDensityElem.className = `status-pill pill-${(density === 'CRITICAL' || density === 'SEVERE') ? 'offline' : (density === 'HIGH' ? 'connecting' : 'online')}`;
             streamDensityElem.textContent = density;
         }
 
         const signalIndicator = document.getElementById("map-panel-signal-indicator");
         if (signalIndicator) {
             let signalClass = "signal-indicator-green";
-            let signalText = `GREEN (${greenTime}s)`;
-            if (density === "HIGH") {
+            let signalText = `GREEN (${timer}s)`;
+            if (signalState.includes("YELLOW")) {
                 signalClass = "signal-indicator-yellow";
-                signalText = `YELLOW (${greenTime}s)`;
-            } else if (density === "SEVERE") {
+                signalText = `YELLOW (${timer}s)`;
+            } else if (signalState.includes("RED") || signalState === "EW_GREEN") {
                 signalClass = "signal-indicator-red";
-                signalText = `RED (${redTime}s)`;
+                signalText = `RED (${timer}s)`;
             }
             signalIndicator.className = `glowing-signal-indicator ${signalClass}`;
             signalIndicator.innerHTML = `<i class="fa-solid fa-traffic-light"></i> ${signalText}`;
         }
 
-        let recommendation = "Standard Low Traffic Cycle";
-        if (density === "MEDIUM") recommendation = "Balanced Signal Timing Optimization";
-        if (density === "HIGH") recommendation = "Extended Green for Lane Clearance";
-        if (density === "SEVERE") recommendation = "Maximum Priority Green Signal";
         setElemText("map-panel-recommendation", recommendation);
         setElemText("stream-info-recommendation", recommendation);
 
@@ -758,11 +1073,106 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         updateCharts(cars, motorcycles, buses, trucks, totalVehicles, density, greenTime, redTime);
-        fetchRouteRecommendation();
-        fetchPrediction();
+        updatePredictionUI(data);
     }
 
-    // Update AI Route Recommendation UI
+    function updatePredictionUI(data) {
+        if (!data) return;
+
+        const currentCount = data.totalVehicles || 12;
+        const density = (data.density || "LOW").toUpperCase();
+        const junctionId = data.junctionId || selectedJunctionId || "J101";
+
+        // Dynamic Growth Multiplier based on current vehicle count and density level
+        let growthRate = 1.08;
+        if (density === "MEDIUM") growthRate = 1.20;
+        else if (density === "HIGH") growthRate = 1.38;
+        else if (density === "SEVERE" || density === "CRITICAL") growthRate = 1.60;
+
+        const vehNow = currentCount;
+        const veh2min = Math.round(currentCount * (1 + (growthRate - 1) * 0.45));
+        const veh5min = Math.round(currentCount * (1 + (growthRate - 1) * 0.95));
+        const veh10min = Math.round(currentCount * (1 + (growthRate - 1) * 1.65));
+
+        const getDensityMeta = (count) => {
+            if (count > 22) return { text: "SEVERE", color: "#ef4444" };
+            if (count > 16) return { text: "HIGH", color: "#f97316" };
+            if (count > 10) return { text: "MEDIUM", color: "#eab308" };
+            return { text: "LOW", color: "#22c55e" };
+        };
+
+        const dNow = getDensityMeta(vehNow);
+        const d2m = getDensityMeta(veh2min);
+        const d5m = getDensityMeta(veh5min);
+        const d10m = getDensityMeta(veh10min);
+
+        setElemText("timeline-now-veh", vehNow);
+        setElemText("timeline-2min-veh", veh2min);
+        setElemText("timeline-5min-veh", veh5min);
+        setElemText("timeline-10min-veh", veh10min);
+
+        setPillDensity("timeline-now-density", dNow.text);
+        setPillDensity("timeline-2min-density", d2m.text);
+        setPillDensity("timeline-5min-density", d5m.text);
+        setPillDensity("timeline-10min-density", d10m.text);
+
+        setElemText("pred-curr-density", dNow.text);
+        setElemText("pred-target-density", d5m.text);
+
+        const isHighCongestion = veh5min > 16;
+        const actionMsg = isHighCongestion
+            ? `Action: Increase Green Signal at ${junctionId} by 15 Seconds (Preemptive Clearance)`
+            : `Action: Maintain Dynamic Proportional Allocation for ${junctionId}`;
+        setElemText("pred-action-text", actionMsg);
+
+        const reasonMsg = isHighCongestion
+            ? `Reason: Forecasted influx reaches ${veh5min} vehicles within +5 min horizon (${d5m.text} Density Risk). Preemptively clears congestion.`
+            : `Reason: Traffic volume at ${junctionId} is within optimal smooth parameters.`;
+        setElemText("pred-reason-text", reasonMsg);
+
+        // Update Prediction Trend Chart
+        if (predictionLineChart) {
+            predictionLineChart.data.datasets[0].data = [vehNow, Math.max(1, veh2min - 2), Math.max(2, veh5min - 3), Math.max(3, veh10min - 5)];
+            predictionLineChart.data.datasets[1].data = [vehNow, veh2min, veh5min, veh10min];
+            predictionLineChart.update();
+        }
+
+        // Before vs After AI Benchmark Telemetry
+        const beforeWait = Math.round(vehNow * 5.4 + 28);
+        const afterWait = Math.round(vehNow * 1.6 + 8);
+        const savedWaitPct = Math.round(((beforeWait - afterWait) / beforeWait) * 100);
+
+        const beforeQueue = Math.round(vehNow * 1.25);
+        const afterQueue = Math.max(1, Math.round(vehNow * 0.22));
+        const savedQueuePct = Math.round(((beforeQueue - afterQueue) / beforeQueue) * 100);
+
+        const beforeRisk = Math.min(98, Math.round(veh5min * 3.9));
+        const afterRisk = Math.round(beforeRisk * 0.16);
+        const savedRiskPct = Math.round(((beforeRisk - afterRisk) / beforeRisk) * 100);
+
+        setElemText("cmp-before-wait", `${beforeWait}s`);
+        setElemText("cmp-after-wait", `${afterWait}s`);
+        setElemText("cmp-saved-wait", `-${savedWaitPct}% Saved`);
+
+        setElemText("cmp-before-queue", `${beforeQueue} cars`);
+        setElemText("cmp-after-queue", `${afterQueue} cars`);
+        setElemText("cmp-saved-queue", `-${savedQueuePct}% Reduced`);
+
+        setElemText("cmp-before-risk", `${beforeRisk}% Risk`);
+        setElemText("cmp-after-risk", `${afterRisk}% Risk`);
+        setElemText("cmp-saved-risk", `-${savedRiskPct}% Mitigated`);
+
+        // Insights Telemetry
+        const liveConfidence = data.confidence ? `${Number(data.confidence).toFixed(1)}%` : `${(94.2 + (vehNow % 5) * 1.1).toFixed(1)}%`;
+        setElemText("pred-conf-val", liveConfidence);
+        setElemText("ins-confidence", liveConfidence);
+        setElemText("ins-risk", `${beforeRisk} / 100`);
+        setElemText("ins-congestion", `${Math.min(100, Math.round((vehNow / 24) * 100))}%`);
+        setElemText("ins-pred-wait", `${afterWait} sec`);
+        setElemText("ins-pred-density", d5m.text);
+        setElemText("ins-efficiency", `${100 - afterRisk}%`);
+    }
+
     function updateRouteRecommendationUI(rec) {
         if (!rec) return;
 
@@ -771,21 +1181,21 @@ document.addEventListener("DOMContentLoaded", () => {
         const noRecBanner = document.getElementById("route-no-rec-banner");
         const prioBadge = document.getElementById("route-priority-badge");
 
-        if (density === "HIGH" || density === "SEVERE" || rec.required) {
+        if (rec.required) {
             if (recCard) recCard.classList.add("blinking-warning");
             if (noRecBanner) noRecBanner.classList.add("d-none");
             
             if (prioBadge) {
-                prioBadge.className = `priority-badge ${density === 'SEVERE' ? 'priority-emergency' : 'priority-high'}`;
-                prioBadge.textContent = density === 'SEVERE' ? 'STRONGLY RECOMMENDED' : 'RECOMMENDED';
+                prioBadge.className = `priority-badge ${density === 'CRITICAL' || density === 'SEVERE' ? 'priority-emergency' : 'priority-high'}`;
+                prioBadge.textContent = 'STRONGLY RECOMMENDED';
             }
 
-            setElemText("route-curr-name", rec.currentRoute ?? "Route A (Via Main Highway)");
+            setElemText("route-curr-name", rec.currentRoute ?? "Route A (Via Junction B)");
             setElemText("route-curr-level", density);
-            setElemText("route-alt-name", rec.recommendedRoute ?? "Route B (Via Service Bypass Road)");
-            setElemText("route-time-saved", rec.estimatedTimeSaved ?? "8 min");
-            setElemText("route-wait-reduction", rec.estimatedWaitingReduction ?? "45%");
-            setElemText("route-co2-reduction", rec.estimatedCo2Reduction ?? "22%");
+            setElemText("route-alt-name", rec.recommendedRoute ?? "Route B (Via Junction C & D)");
+            setElemText("route-time-saved", rec.estimatedTimeSaved ?? "11 min");
+            setElemText("route-wait-reduction", rec.estimatedWaitingReduction ?? "52%");
+            setElemText("route-co2-reduction", rec.estimatedCo2Reduction ?? "28%");
             setElemText("route-reason", rec.reason ?? "High Congestion Detected");
 
             if (currentRoutePolyline) currentRoutePolyline.setStyle({ opacity: 0.9, weight: 6 });
@@ -799,9 +1209,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 prioBadge.textContent = "Normal Traffic";
             }
 
-            setElemText("route-curr-name", "Route A (Via Main Highway)");
+            setElemText("route-curr-name", "Route A (Via Junction B)");
             setElemText("route-curr-level", density);
-            setElemText("route-alt-name", "N/A (No Reroute Needed)");
+            setElemText("route-alt-name", "N/A (No Bypass Needed)");
             setElemText("route-time-saved", "0 min");
             setElemText("route-wait-reduction", "0%");
             setElemText("route-co2-reduction", "0%");
@@ -812,70 +1222,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    async function fetchRouteRecommendation() {
-        try {
-            const res = await fetch(API_ROUTE_REC_URL);
-            if (res.ok) {
-                const rec = await res.json();
-                updateRouteRecommendationUI(rec);
-            }
-        } catch (e) {}
-    }
-
     function setPillDensity(id, density) {
         const el = document.getElementById(id);
         if (!el) return;
         const d = (density || "LOW").toLowerCase();
         el.className = `timeline-density-pill pred-density-${d}`;
         el.textContent = density;
-    }
-
-    function updatePredictionUI(pred) {
-        if (!pred) return;
-
-        const currVeh = pred.currentVehicles ?? 14;
-        const pred2 = pred.predictedVehicles2Min ?? 16;
-        const pred5 = pred.predictedVehicles5Min ?? 21;
-        const pred10 = pred.predictedVehicles10Min ?? 26;
-
-        const currDensity = (pred.currentDensity || "LOW").toUpperCase();
-        const predDensity = (pred.predictedDensity || "MEDIUM").toUpperCase();
-
-        setElemText("kpi-ai-acc", pred.predictionAccuracy ?? "96.4%");
-
-        setElemText("timeline-now-veh", currVeh);
-        setPillDensity("timeline-now-density", currDensity);
-
-        setElemText("timeline-2min-veh", pred2);
-        setPillDensity("timeline-2min-density", pred2 >= 20 ? "HIGH" : (pred2 >= 15 ? "MEDIUM" : "LOW"));
-
-        setElemText("timeline-5min-veh", pred5);
-        setPillDensity("timeline-5min-density", pred5 >= 25 ? "SEVERE" : (pred5 >= 18 ? "HIGH" : "MEDIUM"));
-
-        setElemText("timeline-10min-veh", pred10);
-        setPillDensity("timeline-10min-density", pred10 >= 25 ? "SEVERE" : (pred10 >= 18 ? "HIGH" : "MEDIUM"));
-
-        setElemText("pred-conf-val", pred.predictionConfidence ?? "96.4%");
-        setElemText("pred-curr-density", currDensity);
-        setElemText("pred-target-density", predDensity);
-        setElemText("pred-action-text", `Action: Increase Green Signal by ${pred.recommendedGreenTime ? pred.recommendedGreenTime - 35 : 15} Seconds (Preemptive Clearance)`);
-        setElemText("pred-reason-text", `Reason: ${pred.recommendationReason ?? "Vehicle Growth Rate Increasing"}`);
-
-        if (predictionLineChart) {
-            predictionLineChart.data.datasets[0].data = [currVeh, currVeh, currVeh + 1, currVeh + 1];
-            predictionLineChart.data.datasets[1].data = [currVeh, pred2, pred5, pred10];
-            predictionLineChart.update();
-        }
-    }
-
-    async function fetchPrediction() {
-        try {
-            const res = await fetch(API_PREDICTION_URL);
-            if (res.ok) {
-                const pred = await res.json();
-                updatePredictionUI(pred);
-            }
-        } catch (e) {}
     }
 
     function updateCharts(cars, motorcycles, buses, trucks, totalVehicles, density, greenTime, redTime) {
@@ -904,7 +1256,19 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // 11. Health Checks & Polling
+    // Preemptive Signal Boost Button Listener
+    const boostBtn = document.getElementById("btn-apply-preemptive-boost");
+    if (boostBtn) {
+        boostBtn.addEventListener("click", () => {
+            if (window.TrafficSimulation && window.TrafficSimulation.applySignalBoost) {
+                window.TrafficSimulation.applySignalBoost(15);
+                addAlert(`Preemptive AI Signal Boost (+15s) applied to ${selectedJunctionId}!`, "success");
+                addOpsTimeline(`Preemptive AI Boost (+15s) triggered for ${selectedJunctionId}`);
+            }
+        });
+    }
+
+    // Health Checks
     async function checkHealthAllServices() {
         try {
             const res = await fetch(API_HEALTH_URL);
@@ -932,70 +1296,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    async function pollTrafficData() {
-        try {
-            const response = await fetch(API_TRAFFIC_URL);
-            if (response.ok) {
-                const list = await response.json();
-                if (Array.isArray(list) && list.length > 0) {
-                    updateDashboardUI(list[list.length - 1]);
-                }
-            }
-        } catch (error) {}
-        checkHealthAllServices();
-    }
-
-    // 12. Connect STOMP WebSockets
-    function connectWebSocket() {
-        setStatus("status-ws", "CONNECTING");
-        try {
-            const socket = new SockJS(WEBSOCKET_URL);
-            stompClient = Stomp.over(socket);
-            stompClient.debug = null;
-
-            stompClient.connect({}, () => {
-                setStatus("status-ws", "ONLINE");
-                stompClient.subscribe("/topic/traffic", (message) => {
-                    const data = JSON.parse(message.body);
-                    updateDashboardUI(data);
-                });
-            }, () => {
-                setStatus("status-ws", "OFFLINE");
-                startPollingFallback();
-            });
-        } catch (e) {
-            setStatus("status-ws", "OFFLINE");
-            startPollingFallback();
-        }
-    }
-
-    function startPollingFallback() {
-        if (!pollInterval) {
-            pollTrafficData();
-            pollInterval = setInterval(pollTrafficData, 3000);
-        }
-    }
-
-    // 13. Camera Stream Loading Monitor
-    const camImgElem = document.getElementById("cam-stream");
-    if (camImgElem) {
-        camImgElem.addEventListener("load", hideCamLoading);
-        setTimeout(hideCamLoading, 600);
-        setInterval(() => {
-            if (camImgElem.naturalWidth > 0 || camImgElem.complete) {
-                hideCamLoading();
-            }
-        }, 1000);
-    }
-
-    // Initialize Phase 12 Executive Command Center
+    // Initialize Command Center Application
     initMap();
     initCharts();
     initAnalyticsCharts();
-    fetchRouteRecommendation();
-    fetchPrediction();
-    pollTrafficData();
-    connectWebSocket();
     checkHealthAllServices();
     setInterval(checkHealthAllServices, 3000);
 });
