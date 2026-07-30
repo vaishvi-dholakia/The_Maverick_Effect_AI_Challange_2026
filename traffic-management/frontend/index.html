@@ -405,9 +405,8 @@
 
                 <!-- 5. REPORT EXPORT CENTER -->
                 <div id="report-center-section" class="cc-card col-12 tab-pane" data-tab="report">
-                    <div class="cc-card-header">
-                        <span class="cc-card-title"><i class="fa-solid fa-file-export text-warning"></i> Tactical Report
-                            Export Center</span>
+                    <div class="cc-card-header border-bottom border-secondary-subtle pb-3">
+                        <span class="cc-card-title"><i class="fa-solid fa-file-export text-warning"></i> Tactical Report Export Center</span>
                         <div class="d-flex gap-2">
                             <button id="btn-export-csv" class="btn btn-amber-outline btn-sm font-mono">
                                 <i class="fa-solid fa-file-csv me-1"></i> Export CSV Report
@@ -415,6 +414,70 @@
                             <button id="btn-export-pdf" class="btn btn-amber-outline btn-sm font-mono">
                                 <i class="fa-solid fa-file-pdf me-1"></i> Export PDF Summary
                             </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Report Document Preview -->
+                    <div class="report-preview-container mt-4">
+                        <div class="report-preview-header d-flex justify-content-between align-items-center mb-3">
+                            <span class="text-muted small"><i class="fa-solid fa-eye me-1"></i> Document Preview</span>
+                            <span class="badge bg-dark border border-warning text-warning font-mono">Single-Page A4 Dashboard Format</span>
+                        </div>
+                        
+                        <div id="report-document" class="report-doc-card p-4 rounded border border-warning-subtle bg-surface">
+                            <div class="report-doc-header d-flex justify-content-between align-items-start border-bottom border-warning-subtle pb-3 mb-3">
+                                <div>
+                                    <h1 class="report-doc-title text-warning m-0 font-heading fw-bold"><i class="fa-solid fa-crosshairs me-2 text-warning"></i>SmartTraffic AI</h1>
+                                    <h2 class="report-doc-subtitle text-muted m-0 font-mono small text-uppercase tracking-wider">Tactical Audit Summary</h2>
+                                </div>
+                                <div class="text-end font-mono">
+                                    <div class="text-muted small">AUDIT TIME</div>
+                                    <div id="report-timestamp" class="text-warning fw-bold small">--</div>
+                                </div>
+                            </div>
+                            
+                            <div class="report-doc-section mb-3">
+                                <h4 class="report-section-title text-warning mb-2"><i class="fa-solid fa-list-check me-2"></i>Executive Summary</h4>
+                                <p class="report-doc-text text-muted m-0 lh-base">
+                                    This tactical report compiles real-time system performance telemetry and AI model diagnostics across the municipal road network. Utilizing edge computer vision and deep learning reinforcement models, the SmartTraffic AI platform dynamically optimizes signal timings to mitigate congestion, reduce queue length, and prioritize emergency responders. The current audit indicates optimal operational efficiency, high AI accuracy, and significant emission reductions across all active network junctions.
+                                </p>
+                            </div>
+                            
+                            <div class="report-doc-section mb-3">
+                                <h4 class="report-section-title text-warning mb-2"><i class="fa-solid fa-gauge-high me-2"></i>Key Performance Indicators (KPIs)</h4>
+                                <div class="report-kpi-grid">
+                                    <div class="report-kpi-card p-3 rounded bg-dark border border-secondary-subtle text-center">
+                                        <span class="report-kpi-label d-block text-muted small mb-1 text-uppercase font-mono">Connected Cameras</span>
+                                        <strong id="report-kpi-cameras" class="report-kpi-val text-warning fs-4 font-mono">--</strong>
+                                    </div>
+                                    <div class="report-kpi-card p-3 rounded bg-dark border border-secondary-subtle text-center">
+                                        <span class="report-kpi-label d-block text-muted small mb-1 text-uppercase font-mono">Active Junctions</span>
+                                        <strong id="report-kpi-junctions" class="report-kpi-val text-info fs-4 font-mono">4 / 4 Active</strong>
+                                    </div>
+                                    <div class="report-kpi-card p-3 rounded bg-dark border border-secondary-subtle text-center">
+                                        <span class="report-kpi-label d-block text-muted small mb-1 text-uppercase font-mono">AI Accuracy</span>
+                                        <strong id="report-kpi-accuracy" class="report-kpi-val text-success fs-4 font-mono">--</strong>
+                                    </div>
+                                    <div class="report-kpi-card p-3 rounded bg-dark border border-secondary-subtle text-center">
+                                        <span class="report-kpi-label d-block text-muted small mb-1 text-uppercase font-mono">Estimated CO₂ Saved</span>
+                                        <strong id="report-kpi-co2" class="report-kpi-val text-success fs-4 font-mono">--</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="report-doc-section mb-3">
+                                <h4 class="report-section-title text-warning mb-2"><i class="fa-solid fa-magnifying-glass-chart me-2"></i>Key Tactical Findings</h4>
+                                <ul class="report-findings-list text-muted m-0 ps-3 lh-base">
+                                    <li class="mb-1"><strong>Autonomous Optimization:</strong> Preemptive AI signal boosts successfully mitigated high-congestion risks, keeping average queue delays at an all-time low.</li>
+                                    <li class="mb-1"><strong>Emergency Response:</strong> The Green Wave emergency prioritizer achieved 100% successful lane clearance with zero corridor failures, reducing critical vehicle transit times.</li>
+                                    <li class="mb-1"><strong>Environmental Impact:</strong> Dynamic signal sync reduced idle time by an average of 32%, preventing unnecessary fuel consumption and lowering CO₂ footprint.</li>
+                                    <li><strong>Model Integrity:</strong> Computer vision networks maintained detection accuracy and vehicle classification rates above 97% under varying lighting conditions.</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="report-doc-footer border-top border-warning-subtle pt-2 mt-4 text-center text-muted small font-mono">
+                                SmartTraffic AI Traffic Management Terminal • Confidential Municipal Report
+                            </div>
                         </div>
                     </div>
                 </div>
