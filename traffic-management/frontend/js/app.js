@@ -526,11 +526,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Inter-Junction Alternate Route Engine Evaluation
         evaluateInterJunctionRerouting(allJunctions);
-
-        // Update Report Preview Fields Dynamically
-        if (typeof updateReportData === "function") {
-            updateReportData();
-        }
     }, 500);
 
     // Inter-Junction Rerouting Engine
@@ -644,30 +639,9 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    function updateReportData() {
-        const now = new Date();
-        const formattedDate = now.toLocaleDateString(undefined, { 
-            weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' 
-        }) + ' ' + now.toLocaleTimeString(undefined, { 
-            hour: '2-digit', minute: '2-digit', second: '2-digit' 
-        });
-        
-        setElemText("report-timestamp", formattedDate);
-
-        // Get values from main KPI grid to ensure they match exactly
-        const camsVal = document.getElementById("kpi-connected-cams")?.textContent || "4 / 4";
-        const accVal = document.getElementById("kpi-ai-acc")?.textContent || "97.4%";
-        const co2Val = document.getElementById("kpi-co2-saved")?.textContent || "28%";
-
-        setElemText("report-kpi-cameras", camsVal);
-        setElemText("report-kpi-accuracy", accVal);
-        setElemText("report-kpi-co2", co2Val);
-    }
-
     const btnExportPdf = document.getElementById("btn-export-pdf");
     if (btnExportPdf) {
         btnExportPdf.addEventListener("click", () => {
-            updateReportData();
             addAlert("Generating PDF Summary Report for Municipal Audit...", "info");
             addOpsTimeline("PDF Summary Report Exported");
             window.print();
