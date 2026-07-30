@@ -3,6 +3,8 @@ package com.smartcity.traffic.controller;
 import com.smartcity.traffic.dto.TrafficDataDTO;
 import com.smartcity.traffic.entity.TrafficData;
 import com.smartcity.traffic.service.TrafficService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +19,7 @@ import java.util.Map;
 @CrossOrigin(origins = "*")
 public class TrafficController {
 
+    private static final Logger logger = LoggerFactory.getLogger(TrafficController.class);
     private final TrafficService trafficService;
     private final SimpMessagingTemplate messagingTemplate;
 
@@ -33,10 +36,21 @@ public class TrafficController {
     }
 
     @PostMapping("/traffic/update")
-    public ResponseEntity<Map<String, String>> updateTrafficData(@RequestBody TrafficDataDTO data) {
+    public ResponseEntity<Map<String, Object>> updateTrafficData(@RequestBody TrafficDataDTO data) {
+        logger.info("[Controller Received Request] POST /api/traffic/update | Junction: {}, Vehicles: {}, Density: {}", 
+                data.getJunctionId(), data.getTotalVehicles(), data.getDensity());
         TrafficData saved = trafficService.saveTrafficData(data);
-        messagingTemplate.convertAndSend("/topic/traffic", saved);
-        return ResponseEntity.ok(Map.of("message", "Traffic Data Saved to MySQL"));
+        try {
+            messagingTemplate.convertAndSend("/topic/traffic", saved);
+        } catch (Exception e) {
+            logger.warn("WebSocket broadcast warning: {}", e.getMessage());
+        }
+        return ResponseEntity.ok(Map.of(
+            "status", "SUCCESS",
+            "message", "Traffic Data Saved to MySQL",
+            "id", saved.getId(),
+            "junctionId", saved.getJunctionId() != null ? saved.getJunctionId() : "J101"
+        ));
     }
 
     @GetMapping("/traffic/all")
