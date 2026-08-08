@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { CloudSun, User, Settings, Bell, Sun, Moon } from 'lucide-react';
 
 export default function TopHeader({ 
   cityName = "Ahmedabad Smart City", 
@@ -16,84 +15,70 @@ export default function TopHeader({
     return () => clearInterval(timer);
   }, []);
 
-  const getGreeting = () => {
-    const hour = time.getHours();
-    if (hour < 12) return "Good Morning";
-    if (hour < 17) return "Good Afternoon";
-    return "Good Evening";
-  };
-
   const formattedTime = time.toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit',
+    second: '2-digit',
     hour12: true
   });
 
   const formattedDate = time.toLocaleDateString([], {
-    weekday: 'short',
+    weekday: 'long',
     month: 'short',
     day: 'numeric'
   });
 
-  return (
-    <header className="header-wrapper" style={{ padding: '14px 18px', background: 'var(--bg-card)', backdropFilter: 'blur(16px)', borderRadius: '24px', border: '1px solid var(--border-glass)', marginBottom: '16px' }}>
-      {/* Top Bar: Global Items (Profile, Settings, Notifications, Weather, Time) */}
-      <div className="d-flex align-items-center justify-content-between">
-        {/* Profile & Greeting */}
-        <div className="d-flex align-items-center gap-3">
-          <button 
-            onClick={onOpenProfile}
-            className="avatar-btn-m3"
-            style={{ width: '42px', height: '42px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent-blue), var(--accent-purple))', border: '2px solid rgba(255,255,255,0.2)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 14px rgba(56, 189, 248, 0.3)' }}
-            title="Profile Settings"
-          >
-            <User size={20} />
-          </button>
+  const handleToggleSidebar = () => {
+    document.body.classList.toggle('sidebar-collapsed');
+  };
 
-          <div>
-            <h1 style={{ fontSize: '1.05rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-              {getGreeting()}, User 👋
-            </h1>
-            <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-              {cityName}
-            </span>
-          </div>
+  return (
+    <header className="top-navbar">
+      <div className="d-flex align-items-center gap-3">
+        <button 
+          id="btn-toggle-sidebar" 
+          className="btn btn-outline-warning btn-sm"
+          onClick={handleToggleSidebar}
+        >
+          <i className="fa-solid fa-bars"></i>
+        </button>
+        <i className="fa-solid fa-users text-warning fs-5"></i>
+        <h2 className="navbar-title m-0">Citizen Commuter Portal</h2>
+      </div>
+
+      <div className="navbar-right">
+        {/* Quick Link back to Operator Portal */}
+        <a 
+          href="index.html" 
+          className="btn btn-info btn-sm font-mono text-dark fw-bold me-2" 
+          style={{ boxShadow: '0 0 10px rgba(56, 189, 248, 0.4)' }}
+        >
+          <i className="fa-solid fa-user-shield me-1"></i> Operator Portal
+        </a>
+
+        {/* Live Weather Widget */}
+        <div className="d-none d-sm-flex align-items-center gap-1 font-mono text-muted me-2" style={{ fontSize: '0.8rem' }}>
+          <i className="fa-solid fa-cloud-sun text-warning me-1"></i>
+          <span>28°C</span>
         </div>
 
-        {/* Global Controls: Weather, Time, Notifications, Settings */}
-        <div className="d-flex align-items-center gap-2">
-          {/* Weather Widget */}
-          <div className="d-none d-sm-flex align-items-center gap-1" style={{ background: 'rgba(255,255,255,0.05)', padding: '6px 12px', borderRadius: '20px', fontSize: '0.775rem', fontWeight: 600, color: 'var(--text-primary)', border: '1px solid var(--border-glass)' }}>
-            <CloudSun size={16} style={{ color: '#fbbf24' }} />
-            <span>28°C</span>
-          </div>
+        {/* Live Time Display */}
+        <div className="time-display d-none d-md-block me-3">
+          <span>{formattedDate}</span> | <span className="text-warning fw-bold">{formattedTime}</span>
+        </div>
 
-          {/* Time & Date Widget */}
-          <div className="d-none d-md-flex align-items-center gap-1" style={{ background: 'rgba(255,255,255,0.05)', padding: '6px 12px', borderRadius: '20px', fontSize: '0.775rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', border: '1px solid var(--border-glass)' }}>
-            <span>{formattedTime}</span>
-            <span style={{ opacity: 0.3 }}>•</span>
-            <span style={{ color: 'var(--text-muted)' }}>{formattedDate}</span>
-          </div>
-
-          {/* Notifications Button */}
-          <button 
-            onClick={onOpenNotifications}
-            className="theme-toggle-btn-m3"
-            title="Notifications"
-            style={{ position: 'relative' }}
+        {/* User Dropdown */}
+        <div className="dropdown">
+          <a 
+            href="#" 
+            className="text-warning text-decoration-none" 
+            onClick={(e) => {
+              e.preventDefault();
+              onOpenProfile();
+            }}
           >
-            <Bell size={18} style={{ color: 'var(--text-primary)' }} />
-            <span style={{ position: 'absolute', top: '4px', right: '4px', width: '8px', height: '8px', background: '#ef4444', borderRadius: '50%', border: '1px solid var(--bg-dark)' }}></span>
-          </button>
-
-          {/* Settings / Theme Toggle */}
-          <button 
-            onClick={onToggleTheme}
-            className="theme-toggle-btn-m3"
-            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
-          >
-            {theme === 'dark' ? <Sun size={18} className="text-warning" /> : <Moon size={18} className="text-primary" />}
-          </button>
+            <i className="fa-solid fa-circle-user fs-5 text-warning"></i>
+          </a>
         </div>
       </div>
     </header>

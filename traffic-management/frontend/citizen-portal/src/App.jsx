@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Sidebar from './components/Sidebar';
 import TopHeader from './components/TopHeader';
 import CityStatusCard from './components/CityStatusCard';
 import AiDailyBrief from './components/AiDailyBrief';
@@ -178,67 +179,75 @@ export default function App() {
   };
 
   return (
-    <div className="app-container">
-      {/* Top Header with Global Items (Profile, Settings, Notifications, Weather, Time) */}
-      <TopHeader 
-        cityName="Ahmedabad Smart City" 
-        theme={theme} 
-        onToggleTheme={toggleTheme}
-        onOpenProfile={() => setActiveModal('profile')}
-        onOpenSettings={() => setActiveModal('profile')}
-        onOpenNotifications={() => setActiveTab('incident')}
-      />
+    <div id="app-layout" className="citizen-body">
+      {/* Left Sidebar Navigation */}
+      <Sidebar activeTab={activeTab} setActiveTab={handleSelectNavPage} />
 
-      {/* RENDER VIEW ACCORDING TO ACTIVE TAB */}
-      {isLoading ? (
-        <div className="d-flex flex-column gap-3">
-          <SkeletonLoader type="city-status" />
-          <SkeletonLoader type="card" />
-          <SkeletonLoader type="list" />
-        </div>
-      ) : activeTab === 'routes' ? (
-        <SmartRoutePlanner onBackToHome={() => setActiveTab('home')} />
-      ) : activeTab === 'greenwave' ? (
-        <AiGreenWaveAssistant onBackToHome={() => setActiveTab('home')} />
-      ) : activeTab === 'incident' ? (
-        <LiveTrafficIncidentCenter
-          onBackToHome={() => setActiveTab('home')}
-          onOpenRoutePlanner={() => setActiveTab('routes')}
+      {/* Main Content Wrapper */}
+      <div className="main-wrapper">
+        {/* Top Tactical Navbar Header */}
+        <TopHeader 
+          cityName="Ahmedabad Smart City" 
+          theme={theme} 
+          onToggleTheme={toggleTheme}
+          onOpenProfile={() => setActiveModal('profile')}
+          onOpenSettings={() => setActiveModal('profile')}
+          onOpenNotifications={() => setActiveTab('incident')}
         />
-      ) : (
-        <>
-          {/* 1. City Traffic Status */}
-          <CityStatusCard trafficData={trafficData} />
 
-          {/* 2. Today's AI Travel Brief */}
-          <AiDailyBrief
-            recommendation={aiRecommendation}
-            onLaunchGreenWave={() => setActiveTab('greenwave')}
-          />
+        {/* Page Main Content Area */}
+        <main className="page-content">
+          {isLoading ? (
+            <div className="d-flex flex-column gap-3">
+              <SkeletonLoader type="city-status" />
+              <SkeletonLoader type="card" />
+              <SkeletonLoader type="list" />
+            </div>
+          ) : activeTab === 'routes' ? (
+            <SmartRoutePlanner onBackToHome={() => setActiveTab('home')} />
+          ) : activeTab === 'greenwave' ? (
+            <AiGreenWaveAssistant onBackToHome={() => setActiveTab('home')} />
+          ) : activeTab === 'incident' ? (
+            <LiveTrafficIncidentCenter
+              onBackToHome={() => setActiveTab('home')}
+              onOpenRoutePlanner={() => setActiveTab('routes')}
+            />
+          ) : (
+            <>
+              {/* 1. City Traffic Status */}
+              <CityStatusCard trafficData={trafficData} />
 
-          {/* 3. Quick Actions (Primary Navigation System) */}
-          <QuickActions 
-            activePage={activeTab} 
-            onSelectPage={handleSelectNavPage} 
-          />
+              {/* 2. Today's AI Travel Brief */}
+              <AiDailyBrief
+                recommendation={aiRecommendation}
+                onLaunchGreenWave={() => setActiveTab('greenwave')}
+              />
 
-          {/* 4. Recent Alerts */}
-          <RecentEvents 
-            eventsList={events} 
-            onViewAllAlerts={() => setActiveTab('incident')} 
-          />
+              {/* 3. Quick Actions (Primary Navigation System) */}
+              <QuickActions 
+                activePage={activeTab} 
+                onSelectPage={handleSelectNavPage} 
+              />
 
-          {/* 5. Recommended Route */}
-          <RecommendedRouteCard 
-            onOpenRoutePlanner={() => setActiveTab('routes')} 
-          />
+              {/* 4. Recent Alerts */}
+              <RecentEvents 
+                eventsList={events} 
+                onViewAllAlerts={() => setActiveTab('incident')} 
+              />
 
-          {/* 6. Live Map Preview */}
-          <LiveMapPreviewCard 
-            onExpandMap={() => setActiveModal('traffic')} 
-          />
-        </>
-      )}
+              {/* 5. Recommended Route */}
+              <RecommendedRouteCard 
+                onOpenRoutePlanner={() => setActiveTab('routes')} 
+              />
+
+              {/* 6. Live Map Preview */}
+              <LiveMapPreviewCard 
+                onExpandMap={() => setActiveModal('traffic')} 
+              />
+            </>
+          )}
+        </main>
+      </div>
 
       {/* Bottom Navigation Bar */}
       <BottomNav activeTab={activeTab} setActiveTab={handleSelectNavPage} />
